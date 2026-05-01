@@ -244,9 +244,9 @@ Kerberos
 
 Noticeable differences include the fact that the Windows server sets `kdc-options: 40810010` while Impacket will use `kdc-options: 50800000`, additionally the real Windows client will usually include the `HostAddress`, `addr-type` and `NetBIOS Name`
 
-A native Windows client **always** sends an encrypted timestamp (`PA‑ENC‑TIMESTAMP`) as proof of password knowledge. Therefore, an AS-REQ that lacks the PA-ENC-TIMESTAMP attribute can be considered suspicious. 
+Finally, the `etype` list for impacket is monolithic in nature. Impacket will offer aes-256 and then offer RC4. Meanwhile Windows clients offer alot more diverse and numerous encryption types depending on the enctype support set up for the service account, domain policies and other settings. 
 
-Some others a digestible format include:
+Some others in a digestible format include:
 
 | Feature          | Impacket                       | Windows                          |
 | ---------------- | ------------------------------ | -------------------------------- |
