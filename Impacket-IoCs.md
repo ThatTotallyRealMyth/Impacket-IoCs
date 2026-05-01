@@ -306,6 +306,7 @@ Comparing that from our Windows client performing the AS-REQ, the etypes list ha
 ![Pasted image 20260430182342](images/Pasted%20image%2020260430182342.png)
 
 As noted earlier, unlike Impacket, real Windows clients also send the Address/HostAddress sub fields within the AS-REQ. 
+
 **Where the IoC exists**
 
 `impacket/krb5/kerberosv5.py:167-185`
@@ -327,7 +328,7 @@ seq_set_iter(reqBody, 'etype', supportedCiphers)
 ```
 
 
-This is obviously incredibly out of the ordinary and for 99.7% of detection engineers workplaces; it is almost improbable that there's ever a Kerberos attempt only sending AES 256 keys and then only sending RC4 keys. If there is, I'm certain they are trivially excluded/made an exception for.
+This is obviously out of the ordinary and for most enviroments; it is almost improbable that there's ever a Kerberos attempt only sending AES 256 keys and then only sending RC4 keys. If there is, I'm certain they are trivially excluded/made an exception for.
 
 <a id="ioc-04"></a>
 
@@ -367,6 +368,7 @@ supportedCiphers = (int(constants.EncryptionTypes.aes256_cts_hmac_sha1_96.value)
 <a id="ioc-05"></a>
 
 ### IoC 05 - Generic TGS-REQ etype ordering: RC4, DES3, DES, then current cipher
+
 **Surface:** Kerberos TGS-REQ network telemetry
 
 For standard TGS requests, Impacket orders requested service-ticket encryption types as RC4, DES3, DES-CBC-MD5, and finally the current ticket cipher. That order is unusual in modern Windows environments and is useful when DES is disabled in policy but still appears in client request preferences. This is also confounded by the fact that rc4 as of April 2025 has now also been deprecated. It is also straightforward to detect the exact order of the encryption types. 
@@ -377,7 +379,7 @@ We can see this on a target system in which there's a mismatch between what Impa
 
 Additionally, if we end up going for ARCFOUR-HMAC-MD5, Impacket sets in a way that it will appear twice in the list :) even though a Windows client never adds duplicate enctypes in the etype subfield. 
 
-With the predicable/standard ENCTYPES with the bottom one being the supported one. Now looking at the same Windows server and we see different and one more enctype being offered:
+With the predictable/standard ENCTYPES, the bottom one being the supported one. Now looking at the same Windows server and we see different and one more enctype being offered:
 
 ![Pasted image 20260430181751](images/Pasted%20image%2020260430181751.png)
 
@@ -420,6 +422,7 @@ seq_set_iter(reqBody, 'etype',
 <a id="ioc-06"></a>
 
 ### IoC 06 - S4U2Proxy TGS-REQ always adds RBCD `PA-PAC-OPTIONS`
+
 **Surface:** Kerberos TGS-REQ network telemetry
 
 `getST.py` adds `PA-PAC-OPTIONS` with the `resource_based_constrained_delegation` bit when constructing S4U2Proxy requests. This is a strong Impacket S4U/RBCD indicator when observed with `additional-tickets`.
