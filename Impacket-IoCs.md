@@ -1553,19 +1553,10 @@ if version is not None:
 
 ```
 
-  
 
-Source: `impacket/ntlm.py`
-
-  
 
 Evidence:
 
-  
-
-- Impacket: `C:\Users\abdul\Downloads\impacket_linux_capture.txt:11431`
-
-- Windows: `C:\Users\abdul\Downloads\windows_decrypted_auth.txt:17049`
 
 <a id="ioc-58"></a>
 
@@ -2238,10 +2229,6 @@ ORPCthis['flags'] = 1
 
 ```
 
-
-Sources:
-
-
 - MS-DCOM causality identifier reference: <https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/e3884865-47e6-40c3-8b24-0ffd0309f4b7>
 
 <a id="ioc-60"></a>
@@ -2660,6 +2647,7 @@ The same `ServerName = '\x00' * 10` pattern appears throughout the helper wrappe
 
 Source: `impacket/dcerpc/v5/wkst.py`
 
+<a id="ioc-64"></a>
 <a id="cat-example-script-execution-artifacts"></a>
 
 ## Example-script execution artifacts
@@ -2907,8 +2895,56 @@ command += ' 1> ' + '\\\\127.0.0.1\\%s' % self._share + self._output + ' 2>&1'
 
 ```
 
-<a id="ioc-65"></a>
+<a id="ioc-66"></a>
 
+### IoC 66 - rpcrelayclient uses `DummyOp` structure with future use reserved opnum 255
+
+***Surface:** NTLM relay attacks, DCE/RPC relaying, Authentication spoofing and Network/ETW telemetry
+
+ntlmrelayx’s RPC relay client sends a dummy DCE/RPC request using opnum = 255 after completing the RPC authentication exchange. For the supported relay targets in this code path, TSCH and ICPR, opnum 255 is not a valid method. ntlmrelayx/rpcrelayclient expect the server to return `nca_s_op_rng_error / RPC_S_PROCNUM_OUT_OF_RANGE` and treats that response as proof that authentication succeeded.
+
+**Expected/Proper Baseline**
+Non as this is not a real OpEnum and sticks out in context. This is a strong ntlmrelayx RPC relay fingerprint when observed immediately after an authenticated bind as it also uses the DummyOp to keep a target connection alive and so can be further added detection source.
+
+**Relevant Code:**
+```python
+class DummyOp(NDRCALL):
+    opnum = 255
+    structure = (
+    )
+...
+
+
+        try:
+            req = DummyOp()
+            self.session.request(req)
+        except DCERPCException as e:
+            if 'nca_s_op_rng_error' in str(e) or 'RPC_E_INVALID_HEADER' in str(e):
+                return None, STATUS_SUCCESS
+            elif 'rpc_s_access_denied' in str(e):
+                return None, STATUS_ACCESS_DENIED
+            else:
+                LOG.info("Unexpected rpc code received from %s: %s" % (self.stringbinding, str(e)))
+                return None, STATUS_ACCESS_DENIED
+
+    def killConnection(self):
+        if self.session is not None:
+            self.session.get_rpc_transport().disconnect()
+            self.session = None
+
+    def keepAlive(self):
+        try:
+            req = DummyOp()
+            self.session.request(req)
+        except DCERPCException as e:
+            if 'nca_s_op_rng_error' not in str(e) or 'RPC_E_INVALID_HEADER' not in str(e):
+                raise
+```
+
+**Source:**
+`impacket/examples/ntlmrelayx/clients/rpcrelayclient.py`:L119
+
+<a id="ioc-65"></a>
 ### IoC 65 - RemCom `Machine` field is random four-letter ASCII
 **Surface:** SMB named pipe payload inspection, endpoint telemetry from RemCom-style service execution, full packet capture with SMB payload visibility
 
