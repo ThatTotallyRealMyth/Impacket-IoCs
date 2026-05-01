@@ -1,6 +1,4 @@
-# Dissecting Impacket for Mischief and Malice - IoC Reference
-
-This version groups the IoCs by protocol or tool family for easier GitHub browsing. The global IoC numbers match the edited article version.
+# Dissecting Impacket for Good And Bad
 
 ## Quick reference
 
