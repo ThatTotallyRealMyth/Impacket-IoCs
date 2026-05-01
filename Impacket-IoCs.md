@@ -88,7 +88,7 @@
 ### IoC 01 - Kerberos Multiple Systematic Differences in AS-REQ
 **Surface:** Kerberos AS-REQ Network activity/requests
 
-Impacket's TGT request flow, particularly the AS-REQ, differs in several ways from how a Windows client typically fills the same packet. The mismatches include `kdc-options`, flag choices, encryption types, and other request-body fields. 
+Impacket's is built in a way thats different in several ways from how a Windows client typically fills the same request. The mismatches include `kdc-options`, flag choices, encryption types, and other request-body fields. 
 
 Below is the AS-REQ body sent by Impacket:
 
@@ -242,7 +242,7 @@ Kerberos
                     NetBIOS Name: SCCM<20> (Server service)
 ```
 
-Noticeable differences include the fact that the Windows server sets `kdc-options: 40810010` while Impacket will use `kdc-options: 50800000`, additionally the real Windows server will have 2 padata entries while Impacket only 1.  
+Noticeable differences include the fact that the Windows server sets `kdc-options: 40810010` while Impacket will use `kdc-options: 50800000`, additionally the real Windows client will usually include the `HostAddress`, `addr-type` and `NetBIOS Name`
 
 A native Windows client **always** sends an encrypted timestamp (`PA‑ENC‑TIMESTAMP`) as proof of password knowledge. Therefore, an AS-REQ that lacks the PA-ENC-TIMESTAMP attribute can be considered suspicious. 
 
