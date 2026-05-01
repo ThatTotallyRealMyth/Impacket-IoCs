@@ -2904,6 +2904,7 @@ command += ' 1> ' + '\\\\127.0.0.1\\%s' % self._share + self._output + ' 2>&1'
 ntlmrelayx’s RPC relay client sends a dummy DCE/RPC request using opnum = 255 after completing the RPC authentication exchange. For the supported relay targets in this code path, TSCH and ICPR, opnum 255 is not a valid method. ntlmrelayx/rpcrelayclient expect the server to return `nca_s_op_rng_error / RPC_S_PROCNUM_OUT_OF_RANGE` and treats that response as proof that authentication succeeded.
 
 **Expected/Proper Baseline**
+
 Non as this is not a real OpEnum and sticks out in context. This is a strong ntlmrelayx RPC relay fingerprint when observed immediately after an authenticated bind as it also uses the DummyOp to keep a target connection alive and so can be further added detection source.
 
 **Relevant Code:**
@@ -2940,6 +2941,7 @@ class DummyOp(NDRCALL):
             if 'nca_s_op_rng_error' not in str(e) or 'RPC_E_INVALID_HEADER' not in str(e):
                 raise
 ```
+This is particualrly nice when factoring in that it provides an additional route to detect AD-CS ESC11 abuse as well as ESC8 when enlisting the use of RPC servers. 
 
 **Source:**
 `impacket/examples/ntlmrelayx/clients/rpcrelayclient.py`:L119
