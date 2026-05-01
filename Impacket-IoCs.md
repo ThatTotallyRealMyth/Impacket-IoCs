@@ -1,85 +1,88 @@
-# Dissecting Impacket for Good And Bad
+# Dissecting Impacket for Good and Bad 
 
 ## Quick reference
 
-- [Kerberos and ticketing](#kerberos-and-ticketing)
-  - [IoC 01 - Kerberos Multiple Systematic Differences in AS-REQ](#ioc-01-kerberos-multiple-systematic-differences-in-as-req)
-  - [IoC 02 - AS-REQ requested lifetime has `till == rtime == now + 1 day`](#ioc-02-as-req-requested-lifetime-has-till-rtime-now-1-day)
-  - [IoC 03 - Sparse/Mismatched AS-REQ encryption type lists](#ioc-03-sparsemismatched-as-req-encryption-type-lists)
-  - [IoC 04 - `GetNPUsers.py` AS-REP roast request starts RC4-only, then retries AES](#ioc-04-getnpuserspy-as-rep-roast-request-starts-rc4-only-then-retries-aes)
-  - [IoC 05 - Generic TGS-REQ etype ordering: RC4, DES3, DES, then current cipher](#ioc-05-generic-tgs-req-etype-ordering-rc4-des3-des-then-current-cipher)
-  - [IoC 06 - S4U2Proxy TGS-REQ always adds RBCD `PA-PAC-OPTIONS`](#ioc-06-s4u2proxy-tgs-req-always-adds-rbcd-pa-pac-options)
-  - [IoC 07 - Kerberos AP-REQ body differences in LDAP SASL bind](#ioc-07-kerberos-ap-req-body-differences-in-ldap-sasl-bind)
-  - [IoC 08 - Impacket TGS-REQ does not carry PA-DATA PA-PAC-OPTIONS](#ioc-08-impacket-tgs-req-does-not-carry-pa-data-pa-pac-options)
-  - [IoC 26 - `ticketer.py` forged tickets default to a 10-year lifetime with `endtime == renew-till`](#ioc-26-ticketerpy-forged-tickets-default-to-a-10-year-lifetime-with-endtime-renew-till)
-  - [IoC 27 - `ticketer.py` PAC has fixed `LogonCount = 500`, empty `LogonServer`, and default admin-heavy group RIDs](#ioc-27-ticketerpy-pac-has-fixed-logoncount-500-empty-logonserver-and-default-admin-heavy-group-rids)
-  - [IoC 28 - `ticketer.py` writes KDC reply nonce `123456789` into forged EncRepPart](#ioc-28-ticketerpy-writes-kdc-reply-nonce-123456789-into-forged-encreppart)
-  - [IoC 29 - `raiseChild.py` forged parent access injects Enterprise Admin SID `-519` as an ExtraSid](#ioc-29-raisechildpy-forged-parent-access-injects-enterprise-admin-sid-519-as-an-extrasid)
-  - [IoC 37 - Kerberos SPNEGO advertises the legacy Microsoft Kerberos OID but wraps the AP-REQ with the standard Kerberos OID](#ioc-37-kerberos-spnego-advertises-the-legacy-microsoft-kerberos-oid-but-wraps-the-ap-req-with-the-standard-kerberos-oid)
-  - [IoC 38 - LDAP Kerberos bind sends raw `AP-REQ` as the SPNEGO mechToken](#ioc-38-ldap-kerberos-bind-sends-raw-ap-req-as-the-spnego-mechtoken)
-  - [IoC 39 - SMB/LDAP Kerberos AP-REQ authenticators omit the RFC 4121 checksum and sequence number](#ioc-39-smbldap-kerberos-ap-req-authenticators-omit-the-rfc-4121-checksum-and-sequence-number)
-- [SMB](#smb)
-  - [IoC 09 - SMB2/3 client uses ASCII-letter `ClientGuid`](#ioc-09-smb23-client-uses-ascii-letter-clientguid)
-  - [IoC 10 - SMB2/3 negotiate request contains multiple omissions compared to Windows](#ioc-10-smb23-negotiate-request-contains-multiple-omissions-compared-to-windows)
-  - [IoC 11 - SMB1 client negotiate offers only `NT LM 0.12`](#ioc-11-smb1-client-negotiate-offers-only-nt-lm-012)
-- [NTLM and SPNEGO](#ntlm-and-spnego)
-  - [IoC 12 - NTLM implementation omissions in various fields](#ioc-12-ntlm-implementation-omissions-in-various-fields)
-  - [IoC 20 - `ntlmrelayx` LDAP computer creation: 8 uppercase letters plus `$`](#ioc-20-ntlmrelayx-ldap-computer-creation-8-uppercase-letters-plus)
-  - [IoC 21 - `ntlmrelayx` DNS WPAD bypass creates 12-letter random A record first](#ioc-21-ntlmrelayx-dns-wpad-bypass-creates-12-letter-random-a-record-first)
-  - [IoC 41 - NTLMv2 client challenge is eight printable alphanumeric bytes](#ioc-41-ntlmv2-client-challenge-is-eight-printable-alphanumeric-bytes)
-  - [IoC 42 - LDAP Sicily NTLM binds stamp `MsvAvTargetName` as `cifs/<dc-host>` instead of LDAP](#ioc-42-ldap-sicily-ntlm-binds-stamp-msvavtargetname-as-cifsdc-host-instead-of-ldap)
-  - [IoC 53 - Authenticated DCE/RPC often uses raw NTLMSSP instead of SPNEGO](#ioc-53-authenticated-dcerpc-often-uses-raw-ntlmssp-instead-of-spnego)
-  - [IoC 54 - Impacket's WMI `IWbemLevel1Login::NTLMLogin` implementation contains a spec violation and potential remote/local host contradiction](#ioc-54-impackets-wmi-iwbemlevel1loginntlmlogin-implementation-contains-a-spec-violation-and-potential-remotelocal-host-contradiction)
-  - [IoC 55 - Impacket WMI scripts skip various exchanges before `NTLMLogin`](#ioc-55-impacket-wmi-scripts-skip-various-exchanges-before-ntlmlogin)
-  - [IoC 57 - NTLM Type 1 uses a static no-version flag shape](#ioc-57-ntlm-type-1-uses-a-static-no-version-flag-shape)
-  - [IoC 58 - NTLMv2 response omits Windows AV pairs and sends a NULL host name](#ioc-58-ntlmv2-response-omits-windows-av-pairs-and-sends-a-null-host-name)
-- [LDAP and Active Directory objects](#ldap-and-active-directory-objects)
-  - [IoC 34 - `BadSuccessor.py` creates dMSAs named `dMSA-<8 uppercase alnum>` with fixed migration attributes](#ioc-34-badsuccessorpy-creates-dmsas-named-dmsa-8-uppercase-alnum-with-fixed-migration-attributes)
-  - [IoC 48 - `addcomputer.py` default computer objects use `DESKTOP-[A-Z0-9]{8}$`](#ioc-48-addcomputerpy-default-computer-objects-use-desktop-a-z0-98)
-- [DCE/RPC, DCOM, and WMI](#dcerpc-dcom-and-wmi)
-  - [IoC 13 - DCE/RPC bind is missing the second context item](#ioc-13-dcerpc-bind-is-missing-the-second-context-item)
-  - [IoC 14 - DCE/RPC SCMR sets MachineName to "DUMMY" when accessing SCManager](#ioc-14-dcerpc-scmr-sets-machinename-to-dummy-when-accessing-scmanager)
-  - [IoC 15 - DCE/RPC SCMR EnumServicesStatusW RPC invocation sends no offered buffer](#ioc-15-dcerpc-scmr-enumservicesstatusw-rpc-invocation-sends-no-offered-buffer)
-  - [IoC 40 - Authenticated DCE/RPC uses `auth_context_id = 79231 + ctx_id` and `0xff` auth padding](#ioc-40-authenticated-dcerpc-uses-authcontextid-79231-ctxid-and-0xff-auth-padding)
-  - [IoC 50 - DCE/RPC bind usually offers only 32-bit NDR](#ioc-50-dcerpc-bind-usually-offers-only-32-bit-ndr)
-  - [IoC 51 - DCE/RPC ISystemActivate RemoteCreateInstance request contains various odd entries and omissions](#ioc-51-dcerpc-isystemactivate-remotecreateinstance-request-contains-various-odd-entries-and-omissions)
-  - [IoC 52 - DCE/RPC PDUs do not contain `Verification Trailer`](#ioc-52-dcerpc-pdus-do-not-contain-verification-trailer)
-  - [IoC 56 - WMI DCOM activation uses a sparse four-property activation blob](#ioc-56-wmi-dcom-activation-uses-a-sparse-four-property-activation-blob)
-  - [IoC 59 - DCOM ORPC causality ID uses Impacket's non-standard UUID generator](#ioc-59-dcom-orpc-causality-id-uses-impackets-non-standard-uuid-generator)
-  - [IoC 60 - WMI/DCOM session skips the IOXIDResolver ServerAlive2 preflight](#ioc-60-wmidcom-session-skips-the-ioxidresolver-serveralive2-preflight)
-  - [IoC 61 - DCOM object release uses IRemUnknown with single PublicRef releases](#ioc-61-dcom-object-release-uses-iremunknown-with-single-publicref-releases)
-  - [IoC 62 - DCOM activation leaves ClientImpersonationLevel at zero](#ioc-62-dcom-activation-leaves-clientimpersonationlevel-at-zero)
-  - [IoC 63 - DCOM activation serialization uses `0xcccccccc` fillers and `0xfa` property padding](#ioc-63-dcom-activation-serialization-uses-0xcccccccc-fillers-and-0xfa-property-padding)
-  - [IoC 64 - WKSSVC calls use a ten-NUL `ServerName`](#ioc-64-wkssvc-calls-use-a-ten-nul-servername)
-- [Example-script execution artifacts](#example-script-execution-artifacts)
-  - [IoC 16 - `psexec.py` RemCom named pipes, including typoed main pipe](#ioc-16-psexecpy-remcom-named-pipes-including-typoed-main-pipe)
-  - [IoC 17 - Random 4-letter service name and random 8-letter `.exe`](#ioc-17-random-4-letter-service-name-and-random-8-letter-exe)
-  - [IoC 18 - `smbexec.py` `__output_<8 letters>` and `%SYSTEMROOT%\<8 letters>.bat`](#ioc-18-smbexecpy-output8-letters-and-systemroot8-lettersbat)
-  - [IoC 19 - `atexec.py` scheduled task has fixed 2015 `StartBoundary`](#ioc-19-atexecpy-scheduled-task-has-fixed-2015-startboundary)
-  - [IoC 25 - `wmipersist.py` permanent WMI subscription names `EF_<name>` and `TI_<name>`](#ioc-25-wmipersistpy-permanent-wmi-subscription-names-efname-and-tiname)
-  - [IoC 43 - `dcomexec.py` writes command output to `\\127.0.0.1\<share>\__<epoch-prefix>`](#ioc-43-dcomexecpy-writes-command-output-to-127001shareepoch-prefix)
-  - [IoC 65 - RemCom `Machine` field is random four-letter ASCII](#ioc-65-remcom-machine-field-is-random-four-letter-ascii)
-- [secretsdump, DRSUAPI, and VSS](#secretsdump-drsuapi-and-vss)
-  - [IoC 22 - `secretsdump.py` DRSBind advertises `dwExtCaps = 0xffffffff`](#ioc-22-secretsdumppy-drsbind-advertises-dwextcaps-0xffffffff)
-  - [IoC 23 - `secretsdump.py` DRSGetNCChanges requests one object with zero USNs](#ioc-23-secretsdumppy-drsgetncchanges-requests-one-object-with-zero-usns)
-  - [IoC 24 - `secretsdump.py` VSS method uses predictable `vssadmin` and temp-copy sequence](#ioc-24-secretsdumppy-vss-method-uses-predictable-vssadmin-and-temp-copy-sequence)
-  - [IoC 36 - `keylistattack.py` / `secretsdump.py` sends `KERB-KEY-LIST-REQ [161]` for `krbtgt` with RC4-only requested key list](#ioc-36-keylistattackpy-secretsdumppy-sends-kerb-key-list-req-161-for-krbtgt-with-rc4-only-requested-key-list)
-- [MSSQL](#mssql)
-  - [IoC 30 - MSSQL LOGIN7 has constant `ClientID = 01:02:03:04:05:06` and spoofed SSMS metadata](#ioc-30-mssql-login7-has-constant-clientid-010203040506-and-spoofed-ssms-metadata)
-  - [IoC 31 - MSSQL PRELOGIN uses fixed version bytes, `MSSQLServer`, and encryption-off negotiation](#ioc-31-mssql-prelogin-uses-fixed-version-bytes-mssqlserver-and-encryption-off-negotiation)
-  - [IoC 32 - `mssqlshell.py` upload path echoes base64 chunks to `.b64`, decodes with `certutil`, then validates MD5](#ioc-32-mssqlshellpy-upload-path-echoes-base64-chunks-to-b64-decodes-with-certutil-then-validates-md5)
-  - [IoC 33 - `mssqlshell.py` SQL Agent execution creates self-deleting `IdxDefrag<GUID>` CmdExec jobs](#ioc-33-mssqlshellpy-sql-agent-execution-creates-self-deleting-idxdefragguid-cmdexec-jobs)
-- [ntlmrelayx HTTP, WebDAV, RDP, and SCCM](#ntlmrelayx-http-webdav-rdp-and-sccm)
-  - [IoC 35 - ntlmrelayx HTTP/WinRM local-auth challenge has empty AV pairs and printable challenge material](#ioc-35-ntlmrelayx-httpwinrm-local-auth-challenge-has-empty-av-pairs-and-printable-challenge-material)
-  - [IoC 44 - ntlmrelayx WPAD serves a fixed PAC body with compact `FindProxyForURL` formatting](#ioc-44-ntlmrelayx-wpad-serves-a-fixed-pac-body-with-compact-findproxyforurl-formatting)
-  - [IoC 45 - ntlmrelayx WebDAV bait returns `webdavrelay` XML with fixed 2016/2017 timestamps](#ioc-45-ntlmrelayx-webdav-bait-returns-webdavrelay-xml-with-fixed-20162017-timestamps)
-  - [IoC 46 - ntlmrelayx multi-relay redirects to `/<10 uppercase letters-or-digits>`](#ioc-46-ntlmrelayx-multi-relay-redirects-to-10-uppercase-letters-or-digits)
-  - [IoC 47 - ntlmrelayx RDP relay presents a self-signed certificate with CN `RDP-Server`](#ioc-47-ntlmrelayx-rdp-relay-presents-a-self-signed-certificate-with-cn-rdp-server)
-  - [IoC 49 - ntlmrelayx SCCM policy attack speaks with old ConfigMgr client strings](#ioc-49-ntlmrelayx-sccm-policy-attack-speaks-with-old-configmgr-client-strings)
+- [Kerberos and ticketing](#cat-kerberos-and-ticketing)
+  - [IoC 01 - Kerberos Multiple Systematic Differences in AS-REQ](#ioc-01)
+  - [IoC 02 - AS-REQ requested lifetime has `till == rtime == now + 1 day`](#ioc-02)
+  - [IoC 03 - Sparse/Mismatched AS-REQ encryption type lists](#ioc-03)
+  - [IoC 04 - `GetNPUsers.py` AS-REP roast request starts RC4-only, then retries AES](#ioc-04)
+  - [IoC 05 - Generic TGS-REQ etype ordering: RC4, DES3, DES, then current cipher](#ioc-05)
+  - [IoC 06 - S4U2Proxy TGS-REQ always adds RBCD `PA-PAC-OPTIONS`](#ioc-06)
+  - [IoC 07 - Kerberos AP-REQ body differences in LDAP SASL bind](#ioc-07)
+  - [IoC 08 - Impacket TGS-REQ does not carry PA-DATA PA-PAC-OPTIONS](#ioc-08)
+  - [IoC 26 - `ticketer.py` forged tickets default to a 10-year lifetime with `endtime == renew-till`](#ioc-26)
+  - [IoC 27 - `ticketer.py` PAC has fixed `LogonCount = 500`, empty `LogonServer`, and default admin-heavy group RIDs](#ioc-27)
+  - [IoC 28 - `ticketer.py` writes KDC reply nonce `123456789` into forged EncRepPart](#ioc-28)
+  - [IoC 29 - `raiseChild.py` forged parent access injects Enterprise Admin SID `-519` as an ExtraSid](#ioc-29)
+  - [IoC 37 - Kerberos SPNEGO advertises the legacy Microsoft Kerberos OID but wraps the AP-REQ with the standard Kerberos OID](#ioc-37)
+  - [IoC 38 - LDAP Kerberos bind sends raw `AP-REQ` as the SPNEGO mechToken](#ioc-38)
+  - [IoC 39 - SMB/LDAP Kerberos AP-REQ authenticators omit the RFC 4121 checksum and sequence number](#ioc-39)
+- [SMB](#cat-smb)
+  - [IoC 09 - SMB2/3 client uses ASCII-letter `ClientGuid`](#ioc-09)
+  - [IoC 10 - SMB2/3 negotiate request contains multiple omissions compared to Windows](#ioc-10)
+  - [IoC 11 - SMB1 client negotiate offers only `NT LM 0.12`](#ioc-11)
+- [NTLM and SPNEGO](#cat-ntlm-and-spnego)
+  - [IoC 12 - NTLM implementation omissions in various fields](#ioc-12)
+  - [IoC 20 - `ntlmrelayx` LDAP computer creation: 8 uppercase letters plus `$`](#ioc-20)
+  - [IoC 21 - `ntlmrelayx` DNS WPAD bypass creates 12-letter random A record first](#ioc-21)
+  - [IoC 41 - NTLMv2 client challenge is eight printable alphanumeric bytes](#ioc-41)
+  - [IoC 42 - LDAP Sicily NTLM binds stamp `MsvAvTargetName` as `cifs/<dc-host>` instead of LDAP](#ioc-42)
+  - [IoC 53 - Authenticated DCE/RPC often uses raw NTLMSSP instead of SPNEGO](#ioc-53)
+  - [IoC 54 - Impacket's WMI `IWbemLevel1Login::NTLMLogin` implementation contains a spec violation and potential remote/local host contradiction](#ioc-54)
+  - [IoC 55 - Impacket WMI scripts skip various exchanges before `NTLMLogin`](#ioc-55)
+  - [IoC 57 - NTLM Type 1 uses a static no-version flag shape](#ioc-57)
+  - [IoC 58 - NTLMv2 response omits Windows AV pairs and sends a NULL host name](#ioc-58)
+- [LDAP and Active Directory objects](#cat-ldap-and-active-directory-objects)
+  - [IoC 34 - `BadSuccessor.py` creates dMSAs named `dMSA-<8 uppercase alnum>` with fixed migration attributes](#ioc-34)
+  - [IoC 48 - `addcomputer.py` default computer objects use `DESKTOP-[A-Z0-9]{8}$`](#ioc-48)
+- [DCE/RPC, DCOM, and WMI](#cat-dce-rpc-dcom-and-wmi)
+  - [IoC 13 - DCE/RPC bind is missing the second context item](#ioc-13)
+  - [IoC 14 - DCE/RPC SCMR sets MachineName to "DUMMY" when accessing SCManager](#ioc-14)
+  - [IoC 15 - DCE/RPC SCMR EnumServicesStatusW RPC invocation sends no offered buffer](#ioc-15)
+  - [IoC 40 - Authenticated DCE/RPC uses `auth_context_id = 79231 + ctx_id` and `0xff` auth padding](#ioc-40)
+  - [IoC 50 - DCE/RPC bind usually offers only 32-bit NDR](#ioc-50)
+  - [IoC 51 - DCE/RPC ISystemActivate RemoteCreateInstance request contains various odd entries and omissions](#ioc-51)
+  - [IoC 52 - DCE/RPC PDUs do not contain `Verification Trailer`](#ioc-52)
+  - [IoC 56 - WMI DCOM activation uses a sparse four-property activation blob](#ioc-56)
+  - [IoC 59 - DCOM ORPC causality ID uses Impacket's non-standard UUID generator](#ioc-59)
+  - [IoC 60 - WMI/DCOM session skips the IOXIDResolver ServerAlive2 preflight](#ioc-60)
+  - [IoC 61 - DCOM object release uses IRemUnknown with single PublicRef releases](#ioc-61)
+  - [IoC 62 - DCOM activation leaves ClientImpersonationLevel at zero](#ioc-62)
+  - [IoC 63 - DCOM activation serialization uses `0xcccccccc` fillers and `0xfa` property padding](#ioc-63)
+  - [IoC 64 - WKSSVC calls use a ten-NUL `ServerName`](#ioc-64)
+- [Example-script execution artifacts](#cat-example-script-execution-artifacts)
+  - [IoC 16 - `psexec.py` RemCom named pipes, including typoed main pipe](#ioc-16)
+  - [IoC 17 - Random 4-letter service name and random 8-letter `.exe`](#ioc-17)
+  - [IoC 18 - `smbexec.py` `__output_<8 letters>` and `%SYSTEMROOT%\<8 letters>.bat`](#ioc-18)
+  - [IoC 19 - `atexec.py` scheduled task has fixed 2015 `StartBoundary`](#ioc-19)
+  - [IoC 25 - `wmipersist.py` permanent WMI subscription names `EF_<name>` and `TI_<name>`](#ioc-25)
+  - [IoC 43 - `dcomexec.py` writes command output to `\127.0.0.1\<share>\__<epoch-prefix>`](#ioc-43)
+  - [IoC 65 - RemCom `Machine` field is random four-letter ASCII](#ioc-65)
+- [secretsdump, DRSUAPI, and VSS](#cat-secretsdump-drsuapi-and-vss)
+  - [IoC 22 - `secretsdump.py` DRSBind advertises `dwExtCaps = 0xffffffff`](#ioc-22)
+  - [IoC 23 - `secretsdump.py` DRSGetNCChanges requests one object with zero USNs](#ioc-23)
+  - [IoC 24 - `secretsdump.py` VSS method uses predictable `vssadmin` and temp-copy sequence](#ioc-24)
+  - [IoC 36 - `keylistattack.py` / `secretsdump.py` sends `KERB-KEY-LIST-REQ [161]` for `krbtgt` with RC4-only requested key list](#ioc-36)
+- [MSSQL](#cat-mssql)
+  - [IoC 30 - MSSQL LOGIN7 has constant `ClientID = 01:02:03:04:05:06` and spoofed SSMS metadata](#ioc-30)
+  - [IoC 31 - MSSQL PRELOGIN uses fixed version bytes, `MSSQLServer`, and encryption-off negotiation](#ioc-31)
+  - [IoC 32 - `mssqlshell.py` upload path echoes base64 chunks to `.b64`, decodes with `certutil`, then validates MD5](#ioc-32)
+  - [IoC 33 - `mssqlshell.py` SQL Agent execution creates self-deleting `IdxDefrag<GUID>` CmdExec jobs](#ioc-33)
+- [ntlmrelayx HTTP, WebDAV, RDP, and SCCM](#cat-ntlmrelayx-http-webdav-rdp-and-sccm)
+  - [IoC 35 - ntlmrelayx HTTP/WinRM local-auth challenge has empty AV pairs and printable challenge material](#ioc-35)
+  - [IoC 44 - ntlmrelayx WPAD serves a fixed PAC body with compact `FindProxyForURL` formatting](#ioc-44)
+  - [IoC 45 - ntlmrelayx WebDAV bait returns `webdavrelay` XML with fixed 2016/2017 timestamps](#ioc-45)
+  - [IoC 46 - ntlmrelayx multi-relay redirects to `/<10 uppercase letters-or-digits>`](#ioc-46)
+  - [IoC 47 - ntlmrelayx RDP relay presents a self-signed certificate with CN `RDP-Server`](#ioc-47)
+  - [IoC 49 - ntlmrelayx SCCM policy attack speaks with old ConfigMgr client strings](#ioc-49)
+- [Conclusion](#conclusion)
 
----
+<a id="cat-kerberos-and-ticketing"></a>
 
 ## Kerberos and ticketing
+
+<a id="ioc-01"></a>
 
 ### IoC 01 - Kerberos Multiple Systematic Differences in AS-REQ
 **Surface:** Kerberos AS-REQ Network activity/requests
@@ -254,6 +257,8 @@ Some others a digestible format include:
 | `etype`          | Single AES cipher (often)      | Broad list including RC4         |
 | `addresses`      | Absent                         | Host NetBIOS name present        |
 
+<a id="ioc-02"></a>
+
 ### IoC 02 - AS-REQ requested lifetime has `till == rtime == now + 1 day`
 **Surface:** Kerberos AS-REQ network telemetry
 
@@ -277,6 +282,8 @@ reqBody['rtime'] = KerberosTime.to_asn1(now)
 ```
 
 The pre-authenticated rebuild repeats the same behavior at `impacket/krb5/kerberosv5.py:315-317`.
+
+<a id="ioc-03"></a>
 
 ### IoC 03 - Sparse/Mismatched AS-REQ encryption type lists
 **Surface:** Kerberos AS-REQ network telemetry
@@ -322,6 +329,8 @@ seq_set_iter(reqBody, 'etype', supportedCiphers)
 
 This is obviously incredibly out of the ordinary and for 99.7% of detection engineers workplaces; it is almost improbable that there's ever a Kerberos attempt only sending AES 256 keys and then only sending RC4 keys. If there is, I'm certain they are trivially excluded/made an exception for.
 
+<a id="ioc-04"></a>
+
 ### IoC 04 - `GetNPUsers.py` AS-REP roast request starts RC4-only, then retries AES
 **Surface:** Kerberos AS-REQ/KDC error telemetry
 
@@ -354,6 +363,8 @@ supportedCiphers = (int(constants.EncryptionTypes.aes256_cts_hmac_sha1_96.value)
                     int(constants.EncryptionTypes.aes128_cts_hmac_sha1_96.value),)
 
 ```
+
+<a id="ioc-05"></a>
 
 ### IoC 05 - Generic TGS-REQ etype ordering: RC4, DES3, DES, then current cipher
 **Surface:** Kerberos TGS-REQ network telemetry
@@ -406,6 +417,8 @@ seq_set_iter(reqBody, 'etype',
 
 ```
 
+<a id="ioc-06"></a>
+
 ### IoC 06 - S4U2Proxy TGS-REQ always adds RBCD `PA-PAC-OPTIONS`
 **Surface:** Kerberos TGS-REQ network telemetry
 
@@ -447,6 +460,8 @@ opts.append(constants.KDCOptions.renewable.value)
 
 The same construction appears again at `examples/getST.py:738-755`.
 
+<a id="ioc-07"></a>
+
 ### IoC 07 - Kerberos AP-REQ body differences in LDAP SASL bind
 **Surface:** Kerberos AP-REQ body within LDAP/DC SASL facilitated bind
 
@@ -466,6 +481,8 @@ As we can see the gaps between the two. I am not sure if the differences appear 
 
 I also observed the differences in TGS-REQ packets in which the Sname-string entries are three for a standard Windows client but 2 for Impacket with the missing domain name alongside the service and host FQDN
 
+<a id="ioc-08"></a>
+
 ### IoC 08 - Impacket TGS-REQ does not carry PA-DATA PA-PAC-OPTIONS
 When Impacket performs sends a TGS-REQ packet, it does so with only one item in the padata field instead of 2. Impacket does not include the `PA-DATA pA-PAC-OPTIONS` field in the ticket, which a standard Windows client does. 
 
@@ -477,6 +494,8 @@ Whereas referring to our Windows client, we can see that the field is present as
 ![Pasted image 20260430175742](images/Pasted%20image%2020260430175742.png)
 
 We can see from the following section in Microsoft's [MS-KILE](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/2c42487d-2572-4090-999d-0a2d73d8c946) that the `pA-PAC-OPTIONS` field is expected to be set by clients.
+
+<a id="ioc-26"></a>
 
 ### IoC 26 - `ticketer.py` forged tickets default to a 10-year lifetime with `endtime == renew-till`
 **Surface:** Kerberos ticket inspection, service-side PAC/ticket validation logs where decrypted, endpoint ticket cache forensics
@@ -515,6 +534,8 @@ parser.add_argument('-duration', action="store", default = '87600', ...)
 ```
 
   This is probably one of the weaker detections on the list. It is trivial to change in the Impacket code base, but it can still catch unmodified tooling or less careful operators. The stronger point is that it is unusual for `renew-till` and `endtime` to be the same. The main expected case is Protected Users Group membership, where both values are set to 240 minutes instead of the more common 10-hour/7-day split.
+
+<a id="ioc-27"></a>
 
 ### IoC 27 - `ticketer.py` PAC has fixed `LogonCount = 500`, empty `LogonServer`, and default admin-heavy group RIDs
 **Surface:** PAC inspection, service-side ticket validation with key access, forensic parsing of kirbi/ccache artifacts
@@ -559,6 +580,8 @@ parser.add_argument('-groups', action="store", default = '513, 512, 520, 518, 51
 
 As we can see above, since there's the ability for an operator to specify the groups, it isn't a very strong detection. However, detecting the difference between that and the UserId value is pretty powerful and surefire way to detect Impacket's ticketer.py.
 
+<a id="ioc-28"></a>
+
 ### IoC 28 - `ticketer.py` writes KDC reply nonce `123456789` into forged EncRepPart
 **Surface:** Ticket cache / kirbi / ccache forensic parsing, decrypted EncASRepPart or EncTGSRepPart
 
@@ -587,6 +610,8 @@ encRepPart['nonce'] = 123456789
 encRepPart['key-expiration'] = KerberosTime.to_asn1(ticketDuration)
 
 ```
+
+<a id="ioc-29"></a>
 
 ### IoC 29 - `raiseChild.py` forged parent access injects Enterprise Admin SID `-519` as an ExtraSid
 **Surface:** PAC inspection, cross-domain Kerberos ticket validation, privileged access investigations
@@ -627,6 +652,8 @@ validationInfo['Data']['ExtraSids'].append(sidRecord)
 
 goldenTicket, cipher, sessionKey = self.makeGolden(..., entepriseSid + '-519')
 ```
+
+<a id="ioc-37"></a>
 
 ### IoC 37 - Kerberos SPNEGO advertises the legacy Microsoft Kerberos OID but wraps the AP-REQ with the standard Kerberos OID
 **Surface:** SMB2/3 SessionSetup, DCE/RPC bind auth token, SPNEGO token captures
@@ -677,6 +704,8 @@ blob['MechToken'] = struct.pack('B', ASN1_AID) + asn1encode(
 
     KRB5_AP_REQ + encoder.encode(apReq))
 ```
+
+<a id="ioc-38"></a>
 
 ### IoC 38 - LDAP Kerberos bind sends raw `AP-REQ` as the SPNEGO mechToken
 **Surface:** LDAP SASL `GSS-SPNEGO` bind packet capture
@@ -767,6 +796,8 @@ request = ldap3.operation.bind.bind_operation(connection.version, ldap3.SASL, us
 
 ```
 
+<a id="ioc-39"></a>
+
 ### IoC 39 - SMB/LDAP Kerberos AP-REQ authenticators omit the RFC 4121 checksum and sequence number
 **Surface:** Decrypted Kerberos AP-REQ authenticator, service-side instrumentation, lab packet decryption with service key
 
@@ -814,7 +845,11 @@ encodedAuthenticator = encoder.encode(authenticator)
 
 The DCE/RPC Kerberos path does set `cksumtype = 0x8003` and `seq-number = 0` at `impacket/krb5/kerberosv5.py:654-663`, so this detection should be scoped to SMB/LDAP Kerberos AP-REQs.
 
+<a id="cat-smb"></a>
+
 ## SMB
+
+<a id="ioc-09"></a>
 
 ### IoC 09 - SMB2/3 client uses ASCII-letter `ClientGuid`
 **Surface:** SMB2 NEGOTIATE request
@@ -847,6 +882,8 @@ echo "$clientGUID" | tr -d '-' | xxd -r -p | xdd
 ```
 
 You will then end up noticing that the output is just a bunch of letters :)
+
+<a id="ioc-10"></a>
 
 ### IoC 10 - SMB2/3 negotiate request contains multiple omissions compared to Windows
 **Surface:** SMB2/3 NEGOTIATE request
@@ -925,6 +962,8 @@ preAuthIntegrityCapabilities['Salt'] = ''.join([rand.choice(string.ascii_letters
 pad = b'\xFF' * ((8 - (negotiateContext['DataLength'] % 8)) % 8)
 ```
 
+<a id="ioc-11"></a>
+
 ### IoC 11 - SMB1 client negotiate offers only `NT LM 0.12`
 NOTE: Take the following indication with a pinch of salt as it may be an incorrect assumption from my end. 
 
@@ -971,7 +1010,11 @@ sessionSetup['Data']['NativeOS']      = 'Unix'
 sessionSetup['Data']['NativeLanMan']  = 'Samba'
 ```
 
+<a id="cat-ntlm-and-spnego"></a>
+
 ## NTLM and SPNEGO
+
+<a id="ioc-12"></a>
 
 ### IoC 12 - NTLM implementation omissions in various fields
 **Surface:** NTLMSSP over SMB, HTTP, LDAP, RPC
@@ -1039,6 +1082,8 @@ if version is not None:
     auth['os_version'] = version
 ```
 
+<a id="ioc-20"></a>
+
 ### IoC 20 - `ntlmrelayx` LDAP computer creation: 8 uppercase letters plus `$`
 **Surface:** LDAP add, AD object creation, DC logs
   
@@ -1074,6 +1119,8 @@ newPassword = ''.join(random.choice(string.ascii_letters + string.digits + '.,;:
 'sAMAccountName': newComputer,
 ```
 
+<a id="ioc-21"></a>
+
 ### IoC 21 - `ntlmrelayx` DNS WPAD bypass creates 12-letter random A record first
 **Surface:** AD-integrated DNS LDAP modifications
 
@@ -1107,6 +1154,8 @@ if is_name_wpad:
 
 'nTSecurityDescriptor': ACL_ALLOW_EVERYONE_EVERYTHING,
 ```
+
+<a id="ioc-41"></a>
 
 ### IoC 41 - NTLMv2 client challenge is eight printable alphanumeric bytes
 **Surface:** NTLM AUTHENTICATE_MESSAGE, NTLMv2_RESPONSE, LMv2 response in SMB/LDAP/HTTP/RPC captures
@@ -1174,6 +1223,8 @@ temp += clientChallenge # ChallengeFromClient 8 bytes
 lmChallengeResponse = hmac_md5(responseKeyNT, serverChallenge + clientChallenge) + clientChallenge
 ```
 
+<a id="ioc-42"></a>
+
 ### IoC 42 - LDAP Sicily NTLM binds stamp `MsvAvTargetName` as `cifs/<dc-host>` instead of LDAP
 **Surface:** LDAP NTLM bind packet capture, NTLMv2 client challenge AV pairs
 
@@ -1216,6 +1267,8 @@ type3, exportedSessionKey = getNTLMSSPType3(..., service='ldap', ...)
 av_pairs[NTLMSSP_AV_TARGET_NAME] = f"{service}/".encode('utf-16le') + av_pairs[NTLMSSP_AV_DNS_HOSTNAME][1]
 ```
 
+<a id="ioc-53"></a>
+
 ### IoC 53 - Authenticated DCE/RPC often uses raw NTLMSSP instead of SPNEGO
 **Surface:** Authenticated DCE/RPC bind, packet capture with RPC auth decoding, RPC ETW
 
@@ -1238,6 +1291,8 @@ Use this as part of a cluster:
 - `Auth Context ID == 79231`
 
 - Other IoCs mentioned that may empower this detection or add a robust chain
+
+<a id="ioc-54"></a>
 
 ### IoC 54 - Impacket's WMI `IWbemLevel1Login::NTLMLogin` implementation contains a spec violation and potential remote/local host contradiction
 **Surface:** DCOM IWbemLevel1Login traffic, packet capture with decrypted DCE/RPC, RPC ETW with decoded WMI/DCOM parameters
@@ -1305,6 +1360,8 @@ Decode `IWbemLevel1Login::NTLMLogin` and flag:
 - `WszPreferredLocale == NULL`
 
 - `destCtx == 2` while the resource specified is a local one(Take this with a pinch of salt as it is speculative in nature)
+
+<a id="ioc-55"></a>
 
 ### IoC 55 - Impacket WMI scripts skip various exchanges before `NTLMLogin`
 **Surface:** DCOM/WMI call sequence, packet capture with decrypted DCE/RPC, RPC ETW
@@ -1395,6 +1452,8 @@ For DCOM WMI sessions, flag:
 - with no preceding `IWbemLoginClientID::SetClientInfo`
 
 - and no preceding `IWbemLevel1Login::EstablishPosition`
+
+<a id="ioc-57"></a>
 
 ### IoC 57 - NTLM Type 1 uses a static no-version flag shape
 **Confidence:** High
@@ -1507,6 +1566,8 @@ Evidence:
 
 - Windows: `C:\Users\abdul\Downloads\windows_decrypted_auth.txt:17049`
 
+<a id="ioc-58"></a>
+
 ### IoC 58 - NTLMv2 response omits Windows AV pairs and sends a NULL host name
 **Confidence:** Medium-High
 
@@ -1589,7 +1650,11 @@ ntlmChallengeResponse['host_name'] = type1.getWorkstation().encode('utf-16le')
 
 ```
 
+<a id="cat-ldap-and-active-directory-objects"></a>
+
 ## LDAP and Active Directory objects
+
+<a id="ioc-34"></a>
 
 ### IoC 34 - `BadSuccessor.py` creates dMSAs named `dMSA-<8 uppercase alnum>` with fixed migration attributes
 **Surface:** LDAP add/modify logs, AD object attributes, directory change monitoring
@@ -1645,6 +1710,8 @@ return 'dMSA-%s' % random_suffix
 target_account = self.__targetAccount if self.__targetAccount else 'Administrator'
 ```
 
+<a id="ioc-48"></a>
+
 ### IoC 48 - `addcomputer.py` default computer objects use `DESKTOP-[A-Z0-9]{8}$`
 **Surface:** AD object attributes, LDAP add events, Windows security event 4741, directory replication logs
 
@@ -1691,7 +1758,11 @@ return 'DESKTOP-' + (''.join(random.choice(string.ascii_uppercase + string.digit
 
 ```
 
+<a id="cat-dce-rpc-dcom-and-wmi"></a>
+
 ## DCE/RPC, DCOM, and WMI
+
+<a id="ioc-13"></a>
 
 ### IoC 13 - DCE/RPC bind is missing the second context item
 **Surface:** DCE/RPC bind PDUs over SMB named pipes, TCP, or RPC over HTTP
@@ -1751,6 +1822,8 @@ self.transfer_syntax = uuidtup_to_bin(('8a885d04-1ceb-11c9-9fe8-08002b104860', '
 self.__callid = 1
 ```
 
+<a id="ioc-14"></a>
+
 ### IoC 14 - DCE/RPC SCMR sets MachineName to "DUMMY" when accessing SCManager
 **Surface:** DCE/RPC/SCMR Accessing SCManager
 
@@ -1778,6 +1851,8 @@ def hROpenSCManagerW(dce, lpMachineName='DUMMY\x00', lpDatabaseName='ServicesAct
     return dce.request(openSCManager)
 ```
 
+<a id="ioc-15"></a>
+
 ### IoC 15 - DCE/RPC SCMR EnumServicesStatusW RPC invocation sends no offered buffer
 **Surface:** DCE/RPC/SCMR calls invoking the EnumServiceStatusW RPC call
 
@@ -1798,6 +1873,8 @@ In Windows, we see that typically the call **guesses** a large enough buffer u
 Note the difference between this and Impacket. We generally expect native Windows utilities/tools to send/include a explicit service type, an initial offer for buffer size, and a pointer to resume index.
 
 Overall the violation of the spec alongside the additional network class to asking for the exact required buffer size, provides a decent way to catch Impacket DCE/RPC use
+
+<a id="ioc-40"></a>
 
 ### IoC 40 - Authenticated DCE/RPC uses `auth_context_id = 79231 + ctx_id` and `0xff` auth padding
 **Surface:** DCE/RPC bind, alter-context, request PDUs with NTLM or Kerberos authentication
@@ -1843,6 +1920,8 @@ packet['pduData'] += b'\xFF'*pad
 The same value appears in many other places and so acts as a good IoC for other relevant code paths. This can be seen by simply searching the number in the Impacket repo on github:
 
 ![Pasted image 20260430221742](images/Pasted%20image%2020260430221742.png)
+
+<a id="ioc-50"></a>
 
 ### IoC 50 - DCE/RPC bind usually offers only 32-bit NDR
 **Surface:** DCE/RPC bind packets over SMB named pipes or TCP endpoint mapper, packet capture, RPC ETW with bind details  
@@ -1899,6 +1978,8 @@ def bind(self, iface_uuid, alter = 0, bogus_binds = 0,
     bind.addCtxItem(item)
 
 ```
+
+<a id="ioc-51"></a>
 
 ### IoC 51 - DCE/RPC ISystemActivate RemoteCreateInstance request contains various odd entries and omissions
 **Surface:** DCE/RPC bind, ISystemActivator packet capture, RPC telemetry
@@ -1981,6 +2062,8 @@ Flag DCE/RPC client sessions where repeated binds across admin interfaces negoti
 
 There is non? There's no many differences and gaps but I'm sure one can easily search the Impacket repo.
 
+<a id="ioc-52"></a>
+
 ### IoC 52 - DCE/RPC PDUs do not contain `Verification Trailer`
 **Surface:** Authenticated DCE/RPC bind, alter_context, request auth verifier, packet capture with RPC auth decoding
 
@@ -2002,6 +2085,8 @@ Windows clients, especially after the rollout of [DCOM Hardening](https://techco
 **How To Find It**
 
 * Detect when a remote access request is initiated without providing the `Verification Trailer` within the final PDU
+
+<a id="ioc-56"></a>
 
 ### IoC 56 - WMI DCOM activation uses a sparse four-property activation blob
 **Surface:** DCOM `ISystemActivator::RemoteCreateInstance`, packet capture with decrypted DCE/RPC, RPC ETW
@@ -2052,6 +2137,8 @@ Decode `ISystemActivator::RemoteCreateInstance` for `CLSID_WbemLevel1Login` / `8
 - No `ClientContext` OBJREF present
 
 - requested interface `IWbemLevel1Login`
+
+<a id="ioc-59"></a>
 
 ### IoC 59 - DCOM ORPC causality ID uses Impacket's non-standard UUID generator
 **Surface:** DCOM ORPC requests, WMI/DCOM packet capture, Wireshark-decoded `ORPCThis`
@@ -2156,6 +2243,8 @@ Sources:
 
 - MS-DCOM causality identifier reference: <https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/e3884865-47e6-40c3-8b24-0ffd0309f4b7>
 
+<a id="ioc-60"></a>
+
 ### IoC 60 - WMI/DCOM session skips the IOXIDResolver ServerAlive2 preflight
 **Surface:** DCOM/WMI packet capture, RPC endpoint mapper and TCP/135 flows
   
@@ -2238,6 +2327,8 @@ def ServerAlive2(self):
 Sources:
 - MS-DCOM `ServerAlive2` reference: <https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/c898afd6-b75d-4641-a2cd-b50cb9f5556d>
 
+<a id="ioc-61"></a>
+
 ### IoC 61 - DCOM object release uses IRemUnknown with single PublicRef releases
 **Surface:** DCOM/WMI packet capture, `IRemUnknown` / `IRemUnknown2` calls
 
@@ -2316,6 +2407,8 @@ Sources:
 - MS-DCOM `IRemUnknown` reference: <https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/7f621d16-8448-4f9a-9567-793845db2bc7>
 
 - MS-DCOM `REMINTERFACEREF` reference: <https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/69bc8015-c524-4988-b7fa-96094f0f74e9>
+
+<a id="ioc-62"></a>
 
 ### IoC 62 - DCOM activation leaves ClientImpersonationLevel at zero
 **Surface:** DCOM `RemoteCreateInstance` activation blob, Wireshark-decoded `ScmRequestInfo`
@@ -2403,6 +2496,8 @@ scmInfo['remoteRequest']['pRequestedProtseqs'].append(7)
 
 
 Source: `impacket/dcerpc/v5/dcomrt.py`
+
+<a id="ioc-63"></a>
 
 ### IoC 63 - DCOM activation serialization uses `0xcccccccc` fillers and `0xfa` property padding
 **Surface:** DCOM `RemoteCreateInstance` activation blob, packet capture with decoded activation properties
@@ -2507,6 +2602,8 @@ Sources:
 
 - `impacket/dcerpc/v5/dcomrt.py`
 
+<a id="ioc-64"></a>
+
 ### IoC 64 - WKSSVC calls use a ten-NUL `ServerName`
 **Surface:** WKSSVC RPC over SMB named pipe, packet capture with DCE/RPC decoding, RPC ETW
   
@@ -2562,7 +2659,11 @@ The same `ServerName = '\x00' * 10` pattern appears throughout the helper wrappe
 
 Source: `impacket/dcerpc/v5/wkst.py`
 
+<a id="cat-example-script-execution-artifacts"></a>
+
 ## Example-script execution artifacts
+
+<a id="ioc-16"></a>
 
 ### IoC 16 - `psexec.py` RemCom named pipes, including typoed main pipe
 **Surface:** Named pipe telemetry, SMB create/open events, Sysmon Event ID 17/18, Zeek/Snort etc
@@ -2603,6 +2704,8 @@ tid = s.connectTree('IPC$')
 fid_main = self.openPipe(s,tid,r'\RemCom_communicaton',0x12019f)
 ```
 
+<a id="ioc-17"></a>
+
 ### IoC 17 - Random 4-letter service name and random 8-letter `.exe`
 **Surface:** Windows service creation logs, Security 4697, System 7045, EDR service telemetry
 
@@ -2637,6 +2740,8 @@ command = '%s\\%s' % (path, self.__binary_service_name)
 
 resp = scmr.hRCreateServiceW(..., lpBinaryPathName=command + '\x00', dwStartType=scmr.SERVICE_DEMAND_START)
 ```
+
+<a id="ioc-18"></a>
 
 ### IoC 18 - `smbexec.py` `__output_<8 letters>` and `%SYSTEMROOT%\<8 letters>.bat`
 **Surface:** Service command line, process command line, filesystem, SMB file telemetry
@@ -2676,6 +2781,8 @@ command = self.__shell + 'echo ' + data + ' ^> ' + self.__output + ' 2^>^&1 > ' 
           self.__shell + batchFile
 ```
 
+<a id="ioc-19"></a>
+
 ### IoC 19 - `atexec.py` scheduled task has fixed 2015 `StartBoundary`
 **Surface:** Task Scheduler Operational logs, Security process events, SMB reads/deletes
 
@@ -2710,6 +2817,8 @@ smbConnection.getFile('ADMIN$', 'Temp\\%s' % tmpFileName, output_callback)
 ...
 smbConnection.deleteFile('ADMIN$', 'Temp\\%s' % tmpFileName)
 ```
+
+<a id="ioc-25"></a>
 
 ### IoC 25 - `wmipersist.py` permanent WMI subscription names `EF_<name>` and `TI_<name>`
 **Surface:** WMI repository, Sysmon WMI events, WMI-Activity ETW/Event Viewer
@@ -2761,6 +2870,8 @@ filterBinding.Filter = '__EventFilter.Name="EF_%s"' % self.__options.name
 filterBinding.Consumer = 'ActiveScriptEventConsumer.Name="%s"' % self.__options.name
 ```
 
+<a id="ioc-43"></a>
+
 ### IoC 43 - `dcomexec.py` writes command output to `\\127.0.0.1\<share>\__<epoch-prefix>`
 **Surface:** WMI/DCOM-created process command line, Sysmon process creation, Windows 4688, SMB ADMIN$ file access
 
@@ -2794,6 +2905,8 @@ self._output = '\\' + OUTPUT_FILENAME
 command += ' 1> ' + '\\\\127.0.0.1\\%s' % self._share + self._output + ' 2>&1'
 
 ```
+
+<a id="ioc-65"></a>
 
 ### IoC 65 - RemCom `Machine` field is random four-letter ASCII
 **Surface:** SMB named pipe payload inspection, endpoint telemetry from RemCom-style service execution, full packet capture with SMB payload visibility
@@ -2841,7 +2954,11 @@ packet['ProcessID'] = pid
 
 Source: `examples/psexec.py`, also present in related RemCom-using examples.
 
+<a id="cat-secretsdump-drsuapi-and-vss"></a>
+
 ## secretsdump, DRSUAPI, and VSS
+
+<a id="ioc-22"></a>
 
 ### IoC 22 - `secretsdump.py` DRSBind advertises `dwExtCaps = 0xffffffff`
 **Surface:** DRSUAPI RPC traffic, DC replication telemetry
@@ -2879,6 +2996,8 @@ drs['Pid'] = 0
 
 drs['dwExtCaps'] = 0xffffffff
 ```
+
+<a id="ioc-23"></a>
 
 ### IoC 23 - `secretsdump.py` DRSGetNCChanges requests one object with zero USNs
 **Surface:** DRSUAPI RPC traffic, DC replication telemetry  
@@ -2929,6 +3048,8 @@ request['pmsgIn']['V8']['cMaxBytes'] = 0
 request['pmsgIn']['V8']['ulExtendedOp'] = drsuapi.EXOP_REPL_OBJ
 ```
 
+<a id="ioc-24"></a>
+
 ### IoC 24 - `secretsdump.py` VSS method uses predictable `vssadmin` and temp-copy sequence
 **Surface:** Process command line on DCs, service execution telemetry
 
@@ -2967,6 +3088,8 @@ self.__executeRemote('%%COMSPEC%% /C copy %s%s %%SYSTEMROOT%%\\Temp\\%s' % (shad
 
 self.__executeRemote('%%COMSPEC%% /C vssadmin delete shadows /shadow="{%s}" /Quiet' % shadowId)
 ```
+
+<a id="ioc-36"></a>
 
 ### IoC 36 - `keylistattack.py` / `secretsdump.py` sends `KERB-KEY-LIST-REQ [161]` for `krbtgt` with RC4-only requested key list
 **Surface:** Kerberos TGS-REQ packet capture, KDC telemetry
@@ -3013,7 +3136,11 @@ reqBody['sname']['name-string'][0] = serverName
 reqBody['sname']['name-string'][1] = self.__domain
 ```
 
+<a id="cat-mssql"></a>
+
 ## MSSQL
+
+<a id="ioc-30"></a>
 
 ### IoC 30 - MSSQL LOGIN7 has constant `ClientID = 01:02:03:04:05:06` and spoofed SSMS metadata
 **Surface:** TDS LOGIN7 in packet capture, SQL Server connection telemetry where client app/host is captured
@@ -3060,6 +3187,8 @@ self._application_name = application_name or "Microsoft SQL Server Management St
 login["ClientPID"] = random.randint(0, 1024)
 ```
 
+<a id="ioc-31"></a>
+
 ### IoC 31 - MSSQL PRELOGIN uses fixed version bytes, `MSSQLServer`, and encryption-off negotiation
 **Surface:** TDS PRELOGIN packet capture
 
@@ -3093,6 +3222,8 @@ prelogin["ThreadID"] = struct.pack("<L", random.randint(0, 65535))
 
 prelogin["Instance"] = b"MSSQLServer\x00"
 ```
+
+<a id="ioc-32"></a>
 
 ### IoC 32 - `mssqlshell.py` upload path echoes base64 chunks to `.b64`, decodes with `certutil`, then validates MD5
 **Surface:** SQL audit, SQL Server default trace/Extended Events, process creation from `sqlservr.exe`, EDR command line
@@ -3133,6 +3264,8 @@ cmd = 'certutil -decode "' + remote_path + '.b64" "' + remote_path + '"'
 cmd = 'certutil -hashfile "' + remote_path + '" MD5'
 
 ```
+
+<a id="ioc-33"></a>
 
 ### IoC 33 - `mssqlshell.py` SQL Agent execution creates self-deleting `IdxDefrag<GUID>` CmdExec jobs
 **Surface:** SQL Agent job history, MSDB tables, SQL audit, process creation from SQL Agent service
@@ -3177,7 +3310,11 @@ Hunt SQL telemetry and MSDB remnants for:
 "@subsystem='CMDEXEC',@command='%s',@on_success_action=1;"
 ```
 
+<a id="cat-ntlmrelayx-http-webdav-rdp-and-sccm"></a>
+
 ## ntlmrelayx HTTP, WebDAV, RDP, and SCCM
+
+<a id="ioc-35"></a>
 
 ### IoC 35 - ntlmrelayx HTTP/WinRM local-auth challenge has empty AV pairs and printable challenge material
 **Surface:** HTTP/WinRM NTLM challenge in packet capture or proxy logs
@@ -3223,6 +3360,8 @@ challengeMessage['Version'] = b'\xff' * 8
 
 ```
 
+<a id="ioc-44"></a>
+
 ### IoC 44 - ntlmrelayx WPAD serves a fixed PAC body with compact `FindProxyForURL` formatting
 **Surface:** HTTP packet capture, proxy/WPAD logs, browser auto-proxy retrieval logs
 
@@ -3259,6 +3398,8 @@ self.wpad = 'function FindProxyForURL(url, host){if ((host == "localhost") || sh
 self.send_header('Content-type', 'application/x-ns-proxy-autoconfig')
 ```
 
+<a id="ioc-45"></a>
+
 ### IoC 45 - ntlmrelayx WebDAV bait returns `webdavrelay` XML with fixed 2016/2017 timestamps
 **Surface:** HTTP/WebDAV packet capture, proxy logs, endpoint WebClient/WebDAV telemetry
 
@@ -3294,6 +3435,8 @@ content = b"""<?xml version="1.0"?><D:multistatus xmlns:D="DAV:"><D:response><D:
 <D:getlastmodified>Mon, 20 Mar 2017 00:00:22 GMT</D:getlastmodified>...
 
 ```
+
+<a id="ioc-46"></a>
 
 ### IoC 46 - ntlmrelayx multi-relay redirects to `/<10 uppercase letters-or-digits>`
 **Surface:** HTTP packet capture, proxy logs, web server logs
@@ -3333,6 +3476,8 @@ self.send_header('Location','/%s' % rstr)
 
 self.send_header('Content-Length','0')
 ```
+
+<a id="ioc-47"></a>
 
 ### IoC 47 - ntlmrelayx RDP relay presents a self-signed certificate with CN `RDP-Server`
 **Surface:** RDP TLS handshake, certificate telemetry, Zeek/JA3-adjacent TLS logs
@@ -3375,6 +3520,8 @@ def generate_self_signed_cert(common_name="RDP-Server"):
 
     cert.sign(key, "sha256")
 ```
+
+<a id="ioc-49"></a>
 
 ### IoC 49 - ntlmrelayx SCCM policy attack speaks with old ConfigMgr client strings
 **Surface:** SCCM management point HTTP logs, packet capture, IIS logs, proxy logs
@@ -3420,6 +3567,8 @@ x509.NameAttribute(NameOID.COMMON_NAME, "ConfigMgr Client")
 
 self.client.request("CCM_POST", f"{management_point}/ccm_system_windowsauth/request", registration_request_payload, headers=headers)
 ```
+
+<a id="conclusion"></a>
 
 ## Conclusion
 
