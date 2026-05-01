@@ -253,7 +253,6 @@ Some others a digestible format include:
 | `kdc-options`    | Proxiable bit set              | Proxiable never set              |
 | `kdc-options`    | No canonicalize / renewable-ok | Both present                     |
 | `sname` type     | `NT‑PRINCIPAL (1)`             | `NT‑SRV‑INST (2)`                |
-| `padata`         | Only `PA‑PAC‑REQUEST`          | `PA‑ENC‑TIMESTAMP` + PAC request |
 | `till` / `rtime` | Short, fixed offset            | Far‑future sentinel dates        |
 | `etype`          | Single AES cipher (often)      | Broad list including RC4         |
 | `addresses`      | Absent                         | Host NetBIOS name present        |
@@ -378,7 +377,7 @@ We can see this on a target system in which there's a mismatch between what Impa
 
 Additionally, if we end up going for ARCFOUR-HMAC-MD5, Impacket sets in a way that it will appear twice in the list :) even though a Windows client never adds duplicate enctypes in the etype subfield. 
 
-With the predicable/standard ENCTYPES with the top one being the supported one. Now looking at the same Windows server and we see different and one more enctype being offered:
+With the predicable/standard ENCTYPES with the bottom one being the supported one. Now looking at the same Windows server and we see different and one more enctype being offered:
 
 ![Pasted image 20260430181751](images/Pasted%20image%2020260430181751.png)
 
