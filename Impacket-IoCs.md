@@ -2164,7 +2164,7 @@ d1ef1a17-7cd3-4ad1-8d72-94e7b90db75f
 721a15aa-4cd6-47f2-a7b4-fa3260833111
 ```
 
-From above, **Windows CIDs** follow this: `8d72-94e7` → `8` (variant), `4` (version)
+From above, **Windows CIDs** follow this: `4ad1-8d72` → `8` (variant), `4` (version)
 
  In practice this is a very strong Impacket fingerprint when in context of all the other detections as it allows us to better filter out hard known legitimate data.
  
