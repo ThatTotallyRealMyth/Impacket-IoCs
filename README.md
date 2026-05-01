@@ -2,6 +2,8 @@
 
 A public reference of protocol-level and implementation-level indicators of compromise(IoCs) for detecting Impacket-driven activity.
 
+Feel free to open an issue if you find something you think I incorrectly stated, for any feedback or if you have a specific protocol or implementation youd like me to add fingerprints for
+
 ## Overview
 
 This repository contains a part of my notes from an internal rewrite/fork of Impacket that I had undertaken at my current job. I had taken alot of the internal signals produced by Impacket and several of its example tools and provided them here for other blue and red teamers to benefit from. The goal is to help defenders understand what Impacket activity can look like at the protocol, authentication, and implementation layers beyond just at the command-line or artifact level. Additionaly, I hope its a reference for offsec operators that would like to see specific examples of what looks normal and doesnt look normal depending on activity being undertaken in engagement.
