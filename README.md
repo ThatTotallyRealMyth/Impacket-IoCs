@@ -1,4 +1,4 @@
-# Dissecting Impacket For Good and Bad
+# Dissecting Impacket
 
 A public reference of protocol-level and implementation-level indicators of compromise(IoCs) for detecting Impacket-driven activity.
 
