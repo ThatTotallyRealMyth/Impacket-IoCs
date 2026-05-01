@@ -51,6 +51,7 @@
   - [IoC 62 - DCOM activation leaves ClientImpersonationLevel at zero](#ioc-62)
   - [IoC 63 - DCOM activation serialization uses `0xcccccccc` fillers and `0xfa` property padding](#ioc-63)
   - [IoC 64 - WKSSVC calls use a ten-NUL `ServerName`](#ioc-64)
+  - [IoC 66 - rpcrelayclient uses invalid/future use reserved "DummyOp" opnum 255](#ioc-66)
 - [Example-script execution artifacts](#cat-example-script-execution-artifacts)
   - [IoC 16 - `psexec.py` RemCom named pipes, including typoed main pipe](#ioc-16)
   - [IoC 17 - Random 4-letter service name and random 8-letter `.exe`](#ioc-17)
