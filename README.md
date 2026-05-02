@@ -6,25 +6,27 @@ Feel free to open an issue if you find something you think I incorrectly stated,
 
 ## Overview
 
-This repository contains a part of my notes from an internal rewrite/fork of Impacket that I had undertaken at my current job. I had taken alot of the internal signals produced by Impacket and several of its example tools and provided them here for other blue and red teamers to benefit from. The goal is to help defenders understand what Impacket activity can look like at the protocol, authentication, and implementation layers beyond just at the command-line or artifact level. Additionaly, I hope its a reference for offsec operators that would like to see specific examples of what looks normal and doesnt look normal depending on activity being undertaken in engagement.
+This repository contains a part of my notes from an internal rewrite/fork of Impacket that I had undertaken at my current job. I had taken alot of the internal signals produced by Impacket and several of its example tools and provided them here for other blue and red teamers to benefit from. 
+
+The goal is to help defenders understand what Impacket activity can look like at the protocol, authentication, and implementation layers beyond just at the command-line or artifact level. For red teamers, I hope that this repo servers as an inspiration for operators to undertake similar iniatives to improve the operational security of their toolkits as well as serve as a blueprint for how to approach dissecting tooling to understand normal from abnormal.
 
 Much of offensive tooling detection focuses on things like filenames, service names, temporary paths, command output redirection, scheduled task names, and other surface-level artifacts. Those detections are useful, but they are also often easy to change.
 
 While there is some of them, this project tries to focuse on deeper signals: Kerberos request construction, NTLMSSP fields, SPNEGO wrapping, SMB negotiation behavior, DCE/RPC authentication trailers, WMI/DCOM activation details, LDAP object creation patterns, and example-script defaults.
 
-The intent is to give defenders, especially smaller teams without access to expensive commercial detection content, practical signals they can use to build stronger fingerprints for Impacket abuse.
+The intent is to give defenders, especially smaller teams without access to expensive commercial detection content, practical signals they can use to build stronger fingerprints for Impacket abuse. Similarly its to showcase to red teamers the sort of artifacts and signals their tooling could or may leave behind and to better showcase approaching that to improve engagment delivery.
 
 ## What is included
 
-This research currently documents **65 Impacket-related IoCs** across the following categories:
+This research currently documents **67 Impacket-related IoCs** across the following categories:
 
 | Category | Count | Examples |
 | --- | ---: | --- |
 | Kerberos and ticketing | 15 | AS-REQ differences, TGS-REQ etype ordering, AP-REQ wrapping, forged ticket defaults |
 | SMB | 3 | SMB2/3 ClientGuid, negotiate context behavior, SMB1 dialect negotiation |
-| NTLM and SPNEGO | 10 | NTLMSSP omissions, NTLMv2 challenge shape, SPNEGO wrapping differences |
+| NTLM and SPNEGO | 11 | NTLMSSP omissions, NTLMv2 challenge shape, NTLM class spec deviations/violations, SPNEGO wrapping differences |
 | LDAP and Active Directory objects | 2 | Default computer/object creation naming patterns |
-| DCE/RPC, DCOM, and WMI | 14 | `auth_context_id`, missing verification trailers, WMI/DCOM activation behavior |
+| DCE/RPC, DCOM, and WMI | 15 | `auth_context_id`, missing verification trailers, WMI/DCOM activation behavior, dummy/fake OpNum use in RPC relay clients |
 | Example-script execution artifacts | 7 | `psexec.py`, `smbexec.py`, `atexec.py`, `dcomexec.py`, RemCom artifacts |
 | secretsdump, DRSUAPI, and VSS | 4 | DRSBind behavior, DRSGetNCChanges defaults, VSS execution patterns |
 | MSSQL | 4 | LOGIN7 metadata, PRELOGIN behavior, SQL Agent job creation |
