@@ -71,6 +71,9 @@
   - [IoC 59 - MSSQL PRELOGIN uses fixed version bytes, `MSSQLServer`, and encryption-off negotiation](#ioc-59)
   - [IoC 60 - `mssqlshell.py` upload path echoes base64 chunks to `.b64`, decodes with `certutil`, then validates MD5](#ioc-60)
   - [IoC 61 - `mssqlshell.py` SQL Agent execution creates self-deleting `IdxDefrag<GUID>` CmdExec jobs](#ioc-61)
+  - [IoC 68 - MSSQL LOGIN7: `ClientLCID` is always zero](#ioc-68)
+  - [IoC 69 - MSSQL LOGIN7: `ClientTimeZone` is always zero](#ioc-69)
+  - [IoC 70 - MSSQL LOGIN7: `ClientPID` drawn from range 0–1024](#ioc-70)
 - [ntlmrelayx HTTP, WebDAV, RDP, and SCCM](#cat-ntlmrelayx-http-webdav-rdp-and-sccm)
   - [IoC 62 - ntlmrelayx HTTP/WinRM local-auth challenge has empty AV pairs and printable challenge material](#ioc-62)
   - [IoC 63 - ntlmrelayx WPAD serves a fixed PAC body with compact `FindProxyForURL` formatting](#ioc-63)
@@ -365,6 +368,8 @@ supportedCiphers = (int(constants.EncryptionTypes.aes256_cts_hmac_sha1_96.value)
                     int(constants.EncryptionTypes.aes128_cts_hmac_sha1_96.value),)
 
 ```
+
+**Architectural note:** `GetNPUsers.py` builds its AS-REQ entirely independently from `kerberosv5.py`. It imports only `sendReceive()` (transport) and `KerberosError` (exception) from `kerberosv5.py` — the full ASN.1 construction is done inline in `GetNPUsers.getTGT()`. This means any fixes or changes to `getKerberosTGT()` in `kerberosv5.py` **do not affect** `GetNPUsers.py` behavior.
 
 <a id="ioc-05"></a>
 
@@ -3516,6 +3521,72 @@ Hunt SQL telemetry and MSDB remnants for:
 
 "@subsystem='CMDEXEC',@command='%s',@on_success_action=1;"
 ```
+
+
+<a id="ioc-68"></a>
+
+### IoC 68 - MSSQL LOGIN7: `ClientLCID` is always zero
+**Surface:** TDS LOGIN7 packet — SQL network traffic
+
+The `ClientLCID` field in LOGIN7 identifies the client locale (Windows LCID). Impacket sets it to `0` unconditionally via the structure default.SSMS and .NET SqlClient may include a Locale ID (e.g., 1033 for English US) in the connection, which is usually derived from the client application's current culture settings.
+
+**Relevant code**
+
+`impacket/tds.py:274` — LOGIN7 structure definition:
+
+```python
+("ClientLCID", "<L=0"),    # always zero — no real locale
+```
+
+**How to find it**
+
+Decode TDS LOGIN7 and check `ClientLCID`. Impacket always sends `0`; production SQL clients send the system locale (e.g. `1033` for English US).
+
+---
+
+<a id="ioc-69"></a>
+
+### IoC 69 - MSSQL LOGIN7: `ClientTimeZone` is always zero
+**Surface:** TDS LOGIN7 packet — SQL network traffic
+
+`ClientTimeZone` carries the client UTC offset in minutes. Impacket hard-codes it to `0` in the structure default. Real Windows SQL clients send the actual system timezone offset (e.g. `-300` for EST, `-480` for PST, `60` for CET).
+
+***Relevant code***
+
+`impacket/tds.py:273` — LOGIN7 structure definition:
+
+```python
+("ClientTimeZone", "<L=0"),    # always zero regardless of actual timezone
+```
+
+**How to find it**
+
+Decode TDS LOGIN7 and check `ClientTimeZone`. Impacket always sends `0`; Windows SQL clients send the actual system UTC offset in minutes.
+
+---
+
+<a id="ioc-70"></a>
+
+### IoC 70 - MSSQL LOGIN7: `ClientPID` drawn from range 0–1024
+**Surface:** TDS LOGIN7 packet — SQL network traffic
+
+Impacket generates `ClientPID` with `random.randint(0, 1024)` in both `login()` and `kerberosLogin()`.On Windows, process IDs are dynamically assigned and may vary widely. Although lower PIDs are often associated with system processes and higher ones with user processes, there is no strict boundary, and this distinction is not reliable.
+
+**Relevant code**
+
+`impacket/tds.py:815` and `impacket/tds.py:1020`:
+
+```python
+login["ClientPID"] = random.randint(0, 1024)   # unrealistic range, includes odd numbers
+```
+
+**How to find it**
+
+Decode TDS LOGIN7 and check `ClientPID`. Impacket sends a value drawn from `random.randint(0, 1024)`; legitimate Windows SQL clients use the actual process PID.
+
+---
+
+<a id="ioc-71"></a>
 
 <a id="cat-ntlmrelayx-http-webdav-rdp-and-sccm"></a>
 
