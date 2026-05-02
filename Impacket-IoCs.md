@@ -2407,7 +2407,12 @@ ORPCthis['flags'] = 1
 The Windows baseline performs an `IOXIDResolver` bind and `ServerAlive2` call before WMI activation. That call returns COM version and resolver binding information, which lets the client select compatible object resolver bindings.
   
 In the Impacket WMI flow, the client goes straight to `ISystemActivator::RemoteCreateInstance`. No call to `IOXIDResolver::ServerAlive2` is observed. 
-  
+
+Impackets behaviour is a deviation from the MS-DCOM specification, in which [section 2.1](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/d6cf8092-6425-48e3-8a36-5fa313374598) states:
+
+> _"DCOM is based on RPC, and implementations SHOULD support the use of any RPC protocol sequence available in the underlying RPC implementation. The client SHOULD discover an initial working RPC protocol by calling the object resolver on multiple protocols. IObjectExporter::ServerAlive2 (Opnum 5) SHOULD be used for this purpose, and then any RPC protocol to which the object resolver responds SHOULD be used."_
+
+From that, we can see that the Windows product behvaiour(and any real vendor product for that matter) will adhere to attempting to resolve/discover rather than guess/assume(as Impacket does).
 
 **Expected / Proper Baseline**
 
@@ -2438,7 +2443,7 @@ IRemUnknown::RemRelease
 ```
 
   
-This is best treated as a lifecycle fingerprint to be combined with others. Impacket has a `ServerAlive2()` implementation, but normal WMI usage through `DCOMConnection(..., oxidResolver=False)` does not invoke it by default.
+This is best treated as a lifecycle fingerprint to be combined with others. Impacket has a `ServerAlive2()` implementation, but it doesnt appear to be in use when using the DCOMConnection class implementation.
 
 **How To Find It**
 
@@ -2478,10 +2483,6 @@ def ServerAlive2(self):
     resp = self.__portmap.request(request)
 
 ```
-
-
-Sources:
-- MS-DCOM `ServerAlive2` reference: <https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/c898afd6-b75d-4641-a2cd-b50cb9f5556d>
 
 <a id="ioc-42"></a>
 
