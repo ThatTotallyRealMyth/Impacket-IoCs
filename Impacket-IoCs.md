@@ -673,7 +673,7 @@ MS-SPNG says implementations should use the standard Kerberos OID `1.2.840.11355
 - **`mechTypes` List:** Advertises **only** the legacy Microsoft Kerberos OID.
     - `MechType: 1.2.840.48018.1.2.2` (MS KRB5 - Legacy)
 
-Now interestingly, because of IoC 61, we can't actually see the mismatch in OIDs in this specific capture.  Due to our next finding, we know there is no GSS-API wrapper at all due to the spec violations. The raw Kerberos `AP-REQ` inside does not contain an OID in this context however other Impacket paths that would otherwise have this included would bubble up this mismatch.
+Now interestingly, because of IoC 14, we can't actually see the mismatch in OIDs in this specific capture.  Due to our next finding, we know there is no GSS-API wrapper at all due to the spec violations. The raw Kerberos `AP-REQ` inside does not contain an OID in this context however other Impacket paths that would otherwise have this included would bubble up this mismatch.
 
 And then now comparing with a LDAP bind against the DC from our Windows Server:
 
@@ -877,7 +877,7 @@ self.ClientGuid = ''.join([random.choice(string.ascii_letters) for i in range(16
 
 ```
 
-This can be seen in the screenshot provided for IoC 07, where we can see the difference in clientGUIDs between the two. 
+This can be seen in the screenshot provided for IoC 16, where we can see the difference in clientGUIDs between the two. 
 
 Engineers may potentially be able to use regex to extract clientGUIDs and somehow be able to run them against a check. I would tag this as a medium level detection but a simple bash command such as this would be a good-ish base:
 
@@ -2814,7 +2814,6 @@ The same `ServerName = '\x00' * 10` pattern appears throughout the helper wrappe
 
 Source: `impacket/dcerpc/v5/wkst.py`
 
-<a id="ioc-45"></a>
 <a id="cat-example-script-execution-artifacts"></a>
 
 ## Example-script execution artifacts
