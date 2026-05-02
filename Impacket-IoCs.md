@@ -33,6 +33,7 @@
   - [IoC 55 - Impacket WMI scripts skip various exchanges before `NTLMLogin`](#ioc-55)
   - [IoC 57 - NTLM Type 1 uses a static no-version flag shape](#ioc-57)
   - [IoC 58 - NTLMv2 response omits Windows AV pairs and sends a NULL host name](#ioc-58)
+  - [IoC 67 - Impackets NTLM class contains various Spec(MS-NMLP) Deviations and Potential Violations](#ioc-67)
 - [LDAP and Active Directory objects](#cat-ldap-and-active-directory-objects)
   - [IoC 34 - `BadSuccessor.py` creates dMSAs named `dMSA-<8 uppercase alnum>` with fixed migration attributes](#ioc-34)
   - [IoC 48 - `addcomputer.py` default computer objects use `DESKTOP-[A-Z0-9]{8}$`](#ioc-48)
@@ -1217,10 +1218,6 @@ clientChallenge = b("".join([random.choice(string.digits+string.ascii_letters) f
 
 ...
 
-exportedSessionKey = b("".join([random.choice(string.digits+string.ascii_letters) for _ in range(16)]))
-
-...
-
 temp += clientChallenge # ChallengeFromClient 8 bytes
 
 lmChallengeResponse = hmac_md5(responseKeyNT, serverChallenge + clientChallenge) + clientChallenge
@@ -1424,7 +1421,7 @@ Native Windows WMI/DCOM clients are expected to perform either all or most of th
 
 What we can interpret here is that the sending of NULL in the `pszPreferredLocale`, the behavior Impacket defaults to, is "meant" to occur after the local negotiation and unsupported elements between the two systems are gutted.  The NULL value therefore can be okay *if* there was a `EstablishPosition` exchange that happened. 
 
-Additionally, we don't see various proceeding negotiations/steps that otherwise should be occurring. The Windows client, by contrast, implements the full MS-DCOM connection/activation profile that's given per 3.2.4.1.1, including OXID resolution, `IRemUnknown` connection, interface querying, and reference counting. 
+Additionaly, we don't see various proceeding negotiations/steps that otherwise should be occurring. The Windows client, by contrast, implements the full MS-DCOM connection/activation profile that's given per 3.2.4.1.1, including OXID resolution, `IRemUnknown` connection, interface querying, and reference counting. 
 
 Once that's done, the Windows clients will then perform the wider context of the MS-WMI connection. Note that the screenshots below were from the exchange of a Windows client with a server:
 
@@ -1459,13 +1456,9 @@ For DCOM WMI sessions, flag:
 <a id="ioc-57"></a>
 
 ### IoC 57 - NTLM Type 1 uses a static no-version flag shape
-**Confidence:** High
-
   
 
 **Surface:** NTLMSSP Type 1 negotiate inside SMB, RPC, HTTP, LDAP relay, or SPNEGO
-
-  
 
 Across the Impacket capture, NTLM Type 1 messages repeatedly used:
 
@@ -1557,13 +1550,10 @@ if version is not None:
 
 
 
-Evidence:
-
-
 <a id="ioc-58"></a>
 
 ### IoC 58 - NTLMv2 response omits Windows AV pairs and sends a NULL host name
-**Confidence:** Medium-High
+
 
   
 
@@ -1643,6 +1633,180 @@ if channel_binding_value:
 ntlmChallengeResponse['host_name'] = type1.getWorkstation().encode('utf-16le')
 
 ```
+< a id="ioc-67"></a>
+###IoC 67 - Impacket NTLM implementation/class contains Spec & Product Behaviour Deviations/Violations
+
+
+## No MIC (Message Integrity Code) Computed
+
+**Spec:** [MS-NLMP](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-nlmp/c0250a97-2940-40c7-82fb-20d208c71e96) Section 3.1.5.1.2 states that when the CHALLENGE_MESSAGE TargetInfo contains `MsvAvTimestamp`, the client SHOULD compute `MIC = HMAC_MD5(ExportedSessionKey, ConcatenationOf(NEGOTIATE_MESSAGE, CHALLENGE_MESSAGE, AUTHENTICATE_MESSAGE))`, populate the 16-byte MIC field, and set `MsvAvFlags` bit `0x2` to indicate MIC presence.
+
+**Windows behaviour:** Per Appendix B footnote <50>, all Windows versions from Vista onward compute and include the MIC when `MsvAvTimestamp` is present. The spec also notes (§5.1) that "sending the MIC when the timestamp is present greatly increases security" and that implementations without MIC support "will be vulnerable to message tampering.".
+
+**Impacket behaviour:** The MIC is never computed. The `NTLMAuthChallengeResponse` structure defaults the MIC field to empty, and `getNTLMSSPType3()` never performs the HMAC_MD5 computation. The `MsvAvFlags` AV_PAIR is never added or modified to set bit `0x2`.
+
+**Relevant Code**
+
+```python
+# impacket/ntlm.py — NTLMAuthChallengeResponse class
+
+('MICLen','_-MIC','self.checkMIC(self["flags"])'),
+('MIC',':=""'),
+
+@staticmethod
+def checkMIC(flags):
+    # TODO: Find a proper way to check the MIC is in there
+    if flags is not None:
+        if flags & NTLMSSP_NEGOTIATE_VERSION == 0:
+            return 0
+    return 16
+```
+
+`getNTLMSSPType3()` contains no MIC computation, the required `HMAC_MD5(ExportedSessionKey, ...)` call over the three concatenated messages is entirely absent.
+
+
+## Full LMv2 Response Sent When MsvAvTimestamp Is Present
+
+**Spec:** [MS-NLMP] Section [3.1.5.1.2](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-nlmp/c0250a97-2940-40c7-82fb-20d208c71e96) states: "If NTLM v2 authentication is used and the `CHALLENGE_MESSAGE` TargetInfo field has an `MsvAvTimestamp` present, the client SHOULD NOT send the LmChallengeResponse and SHOULD send Z(24) instead."
+
+**Windows behaviour:** Per Appendix B footnote <49>, all Windows versions from Windows XP onward suppress the LMv2 response when `MsvAvTimestamp` is present, sending 24 zero bytes instead.
+
+**Impacket behaviour:** `computeResponseNTLMv2()` unconditionally computes and returns a full LMv2 response regardless of timestamp presence.
+
+**Relevant Code**
+
+```python
+# impacket/ntlm.py — computeResponseNTLMv2()
+
+# Timestamp IS checked and used for the NTv2 blob:
+if av_pairs[NTLMSSP_AV_TIME] is not None:
+    aTime = av_pairs[NTLMSSP_AV_TIME][1]
+else:
+    aTime = struct.pack('<q', (116444736000000000 + calendar.timegm(time.gmtime()) * 10000000))
+
+# ...but LMv2 is always fully computed anyway:
+lmChallengeResponse = hmac_md5(responseKeyNT, serverChallenge + clientChallenge) + clientChallenge
+```
+
+As we can glean from above, impacket has no conditional check exists to send `Z(24)` when `MsvAvTimestamp` is present.
+
+## NTLMSSP_NEGOTIATE_ALWAYS_SIGN Not Always Set
+
+NOTE: I am a bit confused as the description starts with the phrasing `if set` but then goes on to use MUST/SHOULD phrasing. This may need further confirmation. 
+
+**Spec:** [MS-NLMP] Section [2.2.2.5](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-nlmp/99d90ff4-957f-4c8a-80e4-5bfe5a9a9832) (M bit) states: "`NTLMSSP_NEGOTIATE_ALWAYS_SIGN MUST` be set in the NEGOTIATE_MESSAGE to the server." 3.1.5.1.1 lists it among the flags the client sets.
+
+**Windows behaviour:** All Windows NTLM clients appear to be setting this flag in the `NEGOTIATE_MESSAGE`.
+
+**Impacket behaviour:** `getNTLMSSPType1()` only sets `NTLMSSP_NEGOTIATE_ALWAYS_SIGN` when `signingRequired=True`. When `signingRequired=False`, the flag is absent, violating the MUST requirement.
+
+**Relevant Code**
+
+```python
+# impacket/ntlm.py — getNTLMSSPType1()
+
+auth['flags']=0
+if signingRequired:
+    auth['flags'] = NTLMSSP_NEGOTIATE_KEY_EXCH | NTLMSSP_NEGOTIATE_SIGN | NTLMSSP_NEGOTIATE_ALWAYS_SIGN | \
+        NTLMSSP_NEGOTIATE_SEAL
+
+auth['flags'] |= NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY | \
+    NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_56
+```
+
+`NTLMSSP_NEGOTIATE_ALWAYS_SIGN` is inside the `if signingRequired` block, not in the unconditional flags below it.
+
+
+## MsvAvChannelBindings Omitted By Default
+
+**Spec:** [MS-NLMP] 3.1.5.1.2 states that the client SHOULD add an `MsvAvChannelBindings` AV_PAIR. If `ClientChannelBindingsUnhashed` is NULL, the value should be `Z(16)` (16 zero bytes). If non-NULL, it should be `MD5_HASH(ClientChannelBindingsUnhashed)`.
+
+**Windows behaviour:** Per Appendix B footnote <51>, all Windows versions from Windows 7 onward include `MsvAvChannelBindings`. When no channel binding is in use, Windows includes `MsvAvChannelBindings` set to `Z(16)`.
+
+**Impacket behaviour:** `computeResponseNTLMv2()` only adds `MsvAvChannelBindings` when the caller explicitly passes a non-empty `channel_binding_value`. The default is `b''`, so by default the AV_PAIR is entirely absent, not set to `Z(16)` as a Windows client would.
+
+**Relevant Code**
+
+```python
+# impacket/ntlm.py — computeResponseNTLMv2()
+
+if len(channel_binding_value) > 0:
+    av_pairs[NTLMSSP_AV_CHANNEL_BINDINGS] = channel_binding_value
+```
+
+```python
+# impacket/ntlm.py — computeResponse() signature showing the default
+
+def computeResponse(flags, serverChallenge, clientChallenge, serverName, domain, user, password,
+                    lmhash='', nthash='', use_ntlmv2=USE_NTLMv2, channel_binding_value=b'', service='cifs'):
+```
+
+No code path exists to add `Z(16)` when `channel_binding_value` is empty.
+
+## ExportedSessionKey dervied using ASCI characters only. 
+
+**Spec:** [MS-NLMP] 3.1.5.1.2 states `Set ExportedSessionKey to NONCE(16)`. §6 defines `NONCE(N)` as "an N-byte cryptographic-strength random number."
+
+**Windows behaviour:** Windows uses `CryptGenRandom` / `BCryptGenRandom`, producing uniformly distributed bytes across the full 0x00–0xFF range per byte, which means using the bash command showcased in previous IoCs(`xxd -r -p | xdd`) would show the windows sessionkey being non readable in the way the impacket one would be.
+
+**Impacket behaviour:** The exported session key is generated from `string.digits + string.ascii_letters` 62 possible values per byte (0–9, A–Z, a–z). This yields approximately 95 bits of entropy rather than 128, and every byte falls within the ASCII printable range.
+
+**Relevant Code**
+
+```python
+# impacket/ntlm.py — getNTLMSSPType3()
+
+if ntlmChallenge['flags'] & NTLMSSP_NEGOTIATE_KEY_EXCH:
+    # not exactly what I call random tho :)
+    exportedSessionKey = b("".join([random.choice(string.digits+string.ascii_letters) for _ in range(16)]))
+```
+
+The comment `# not exactly what I call random tho :)` is in the source itself. Additionaly, `random.choice` uses Python's `random` module (Mersenne Twister), not `os.urandom` or `secrets`, so even the 95 bits of entropy are not cryptographically strong.
+
+
+## Domain Name Format is Caller-Controlled, and Not Server-Derived
+
+**Spec:** [MS-NLMP] 3.3.2 defines `NTOWFv2(Passwd, User, UserDom)` as `HMAC_MD5(MD4(UNICODE(Passwd)), UNICODE(ConcatenationOf(Uppercase(User), UserDom)))`. The `UserDom` value directly affects the response key computation, and the `DomainName` in the AUTHENTICATE_MESSAGE payload should match.
+
+**Windows behaviour:** A Windows SSPI client uses the NetBIOS domain name (e.g. `DOMAIN`) as `UserDom` which is derived from the server's `MsvAvNbDomainName` AV_PAIR in the CHALLENGE_MESSAGE. The DomainName field in the `AUTHENTICATE_MESSAGE` contains this same NetBIOS form.
+
+**Impacket behaviour:** Impacket uses whatever domain string the caller passes in, both for the NTOWFv2 computation and the A`UTHENTICATE_MESSAGE` DomainName field. If the caller passes the FQDN (`company.local`), impacket will use the FQDN. It does not extract or prefer the NetBIOS name from the server's AV_PAIRs. More testing is required to better narrow if this is a versioning quirk or more universal however it may give yet another strong fingerprint that can be used in context.
+
+### Relevant Code
+
+```python
+# impacket/ntlm.py — NTOWFv2() uses domain as-is from caller
+
+def NTOWFv2(user, password, domain, hash = ''):
+    if hash != '':
+        theHash = hash
+    else:
+        theHash = compute_nthash(password)
+    return hmac_md5(theHash, user.upper().encode('utf-16le') + domain.encode('utf-16le'))
+```
+
+```python
+# impacket/ntlm.py — getNTLMSSPType3() passes domain straight through
+
+ntlmChallengeResponse['domain_name'] = domain.encode('utf-16le')
+```
+
+No code exists to extract `MsvAvNbDomainName` from the `CHALLENGE_MESSAGE` and use it as the domain value.
+
+
+**How to find and detect**
+
+When observing NTLMv2 authentication against a modern Windows server a exchange exhibiting **any combination** of the following is inconsistent with a genuine Windows client from Vista onward and deserves some baselining to filter false positives or scrutiny:
+
+| Target Value to Observe | Expected (Windows Vista+) | Impacket |
+|---|---|---|
+| MIC field | Computed and populated | Empty / zeros |
+| MsvAvFlags bit 0x2 | Set (indicating MIC present) | Absent |
+| LmChallengeResponse | Z(24) when timestamp present | Full LMv2 computation |
+| MsvAvChannelBindings | Present (Z(16) if no binding) | Absent by default |
+| NTLMSSP_NEGOTIATE_ALWAYS_SIGN | Always set (MUST) | Only when signingRequired=True |
+| ExportedSessionKey bytes | Full 0x00-0xFF range | ASCII alphanumeric only |
+| DomainName format | NetBIOS name from server AV_PAIRs | Caller-supplied (often FQDN) |
 
 <a id="cat-ldap-and-active-directory-objects"></a>
 
