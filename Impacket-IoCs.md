@@ -1634,7 +1634,8 @@ ntlmChallengeResponse['host_name'] = type1.getWorkstation().encode('utf-16le')
 
 ```
 < a id="ioc-67"></a>
-###IoC 67 - Impacket NTLM implementation/class contains Spec & Product Behaviour Deviations/Violations
+
+### IoC 67 - Impacket NTLM implementation/class contains Spec & Product Behaviour Deviations/Violations
 
 
 ## No MIC (Message Integrity Code) Computed
