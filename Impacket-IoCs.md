@@ -1633,7 +1633,6 @@ if channel_binding_value:
 ntlmChallengeResponse['host_name'] = type1.getWorkstation().encode('utf-16le')
 
 ```
-< a id="ioc-29"></a>
 
 ### IoC 29 - Impacket NTLM implementation/class contains Spec & Product Behaviour Deviations/Violations
 
@@ -1773,7 +1772,7 @@ The comment `# not exactly what I call random tho :)` is in the source itself. A
 
 **Impacket behaviour:** Impacket uses whatever domain string the caller passes in, both for the NTOWFv2 computation and the A`UTHENTICATE_MESSAGE` DomainName field. If the caller passes the FQDN (`company.local`), impacket will use the FQDN. It does not extract or prefer the NetBIOS name from the server's AV_PAIRs. More testing is required to better narrow if this is a versioning quirk or more universal however it may give yet another strong fingerprint that can be used in context.
 
-### Relevant Code
+**Relevant Code**
 
 ```python
 # impacket/ntlm.py — NTOWFv2() uses domain as-is from caller
