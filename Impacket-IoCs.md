@@ -1634,6 +1634,8 @@ ntlmChallengeResponse['host_name'] = type1.getWorkstation().encode('utf-16le')
 
 ```
 
+<a id="ioc-29"></a>
+
 ### IoC 29 - Impacket NTLM implementation/class contains Spec & Product Behaviour Deviations/Violations
 
 
