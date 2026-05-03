@@ -8,7 +8,7 @@
   - [IoC 03 - Sparse/Mismatched AS-REQ encryption type lists](#ioc-03)
   - [IoC 04 - `GetNPUsers.py` AS-REP roast request starts RC4-only, then retries AES](#ioc-04)
   - [IoC 05 - Generic TGS-REQ etype ordering: RC4, DES3, DES, then current cipher](#ioc-05)
-  - [IoC 06 - S4U2Proxy TGS-REQ always adds RBCD `PA-PAC-OPTIONS`](#ioc-06)
+  - [IoC 06 - S4U2Proxy TGS-REQ always adds RBCD `PA-PAC-OPTIONS` and Does not check `S4UTicketLifetime`](#ioc-06)
   - [IoC 07 - Kerberos AP-REQ body differences in LDAP SASL bind](#ioc-07)
   - [IoC 08 - Impacket TGS-REQ does not carry PA-DATA PA-PAC-OPTIONS](#ioc-08)
   - [IoC 09 - `ticketer.py` forged tickets default to a 10-year lifetime with `endtime == renew-till`](#ioc-09)
