@@ -424,11 +424,13 @@ seq_set_iter(reqBody, 'etype',
 
 <a id="ioc-06"></a>
 
-### IoC 06 - S4U2Proxy TGS-REQ always adds RBCD `PA-PAC-OPTIONS`
+### IoC 06 - S4U2Proxy TGS-REQ always adds RBCD `PA-PAC-OPTIONS` and Does not check `S4UTicketLifetime`
 
 **Surface:** Kerberos TGS-REQ network telemetry
 
 `getST.py` adds `PA-PAC-OPTIONS` with the `resource_based_constrained_delegation` bit when constructing S4U2Proxy requests. This is a strong Impacket S4U/RBCD indicator when observed with `additional-tickets`.
+
+Additonaly there exists a [registry](https://learn.microsoft.com/en-us/troubleshoot/windows-server/windows-security/kerberos-protocol-registry-kdc-configuration-keys) value called `S4UTicketLifetime`, which determines/enforces the lifetime of tickets that are obtained by S4U proxy requests. Impacket will use the default lifetime as its set to do, while we expected that we should be requesting such tickets within the expected policy enforced in the Forest. 
 
 **How to find it**
 
@@ -441,6 +443,8 @@ Decode TGS-REQ padata and request body. Alert when:
 - PAC option `resource_based_constrained_delegation` is set
 
 - `additional-tickets` is populated
+
+- `lifetime` for the request is mismatched with what the domain is expecting
 
 **Relevant code**
 
