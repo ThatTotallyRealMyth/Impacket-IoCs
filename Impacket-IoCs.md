@@ -3532,6 +3532,73 @@ Hunt SQL telemetry and MSDB remnants for:
 
 "@subsystem='CMDEXEC',@command='%s',@on_success_action=1;"
 ```
+< a id="ioc-68"></a>
+
+### IoC 68
+
+Impacket's TDS Kerberos authentication places a raw DER-encoded AP-REQ (leading byte `0x6E`) directly into the SPNEGO NegTokenInit mechToken field, which is excluding/omitting both the GSS-API InitialContextToken framing (0x60 wrapper with KRB5 OID) and the two-byte TOK_ID prefix (01 00) that RFC 1964 Section 1.1 and RFC 4121 Section 4.1 require before context establishment messages.
+
+**Expected / Proper baseline**
+
+RFC 4121 Section 4.1 states the following:
+
+>_"All context establishment tokens emitted by the Kerberos Version 5 GSS-API mechanism SHALL have the framing described in section 3.1 of [RFC2743], as illustrated by the following pseudo-ASN.1 structures:"_
+>
+> ```
+> GSSAPI-Token ::=
+>     [APPLICATION 0] IMPLICIT SEQUENCE {
+>         thisMech MechType,
+>         innerToken ANY DEFINED BY thisMech
+>             -- contents mechanism-specific
+>             -- ASN.1 structure not required
+>     }
+> ```
+>
+> _"The innerToken field starts with a two-octet token-identifier (TOK_ID) expressed in big-endian order, followed by a Kerberos message."_
+>
+> | Token | TOK_ID Value in Hex |
+> |-------|-------------------|
+> | KRB_AP_REQ | `01 00` |
+
+We then know that the Windows implementation will have a mechToken beginning with 0x60 (full GSS-API wrapper) or (Im guessing here based on the above section) at minimum 0x01 (the TOK_ID), never a bare/naked AP-REQ. Additionally, as mentioned in previous IoCs, Impacket only advertises the legacy non-standard Microsoft KRB5 OID (1.2.840.48018.1.2.2) in the mechTypes list, whereas a real Windows client typically offers both this and the standard KRB5 OID (1.2.840.113554.1.2.2).
+
+**Relevant Code**
+
+`impacket/tds.py:1769-1820`:
+
+```python
+# Let's build a NegTokenInit with a Kerberos REQ_AP
+
+        blob = SPNEGO_NegTokenInit()
+
+        # Kerberos
+        blob["MechTypes"] = [TypesMech["MS KRB5 - Microsoft Kerberos 5"]]
+
+        # Let's extract the ticket from the TGS
+        tgs = decoder.decode(tgs, asn1Spec=TGS_REP())[0]
+        ticket = Ticket()
+        ticket.from_asn1(tgs["ticket"])
+
+        # Now let's build the AP_REQ
+        apReq = AP_REQ()
+        apReq["pvno"] = 5
+        apReq["msg-type"] = int(constants.ApplicationTagNumbers.AP_REQ.value)
+...
+
+apReq["authenticator"] = noValue
+        apReq["authenticator"]["etype"] = cipher.enctype
+        apReq["authenticator"]["cipher"] = encryptedEncodedAuthenticator
+
+        blob["MechToken"] = encoder.encode(apReq)
+
+        # Seeting the last options for our TDS packet
+        # TDS_INTEGRATED_SECURITY_ON enables Windows authentication
+        login["OptionFlags2"] |= TDS_INTEGRATED_SECURITY_ON
+```
+
+**How to detect** 
+
+The same detections that have been noted in other identical IoCs applies here with the additions of weaving in the MSSQL specific IoCs mentioned above this entry.
 
 <a id="cat-ntlmrelayx-http-webdav-rdp-and-sccm"></a>
 
