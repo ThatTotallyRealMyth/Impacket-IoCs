@@ -18,6 +18,7 @@
   - [IoC 13 - Kerberos SPNEGO advertises the legacy Microsoft Kerberos OID but wraps the AP-REQ with the standard Kerberos OID](#ioc-13)
   - [IoC 14 - LDAP Kerberos bind sends raw `AP-REQ` as the SPNEGO mechToken](#ioc-14)
   - [IoC 15 - SMB/LDAP Kerberos AP-REQ authenticators omit the RFC 4121 checksum and sequence number](#ioc-15)
+  - [IoC 16 - Multiple Kerberos Authentication pathways used in Impacket set `authenticator` sequence number to 0](#ioc-16)
 - [SMB](#cat-smb)
   - [IoC 16 - SMB2/3 client uses ASCII-letter `ClientGuid`](#ioc-16)
   - [IoC 17 - SMB2/3 negotiate request contains multiple omissions compared to Windows](#ioc-17)
@@ -855,6 +856,56 @@ encodedAuthenticator = encoder.encode(authenticator)
 ```
 
 The DCE/RPC Kerberos path does set `cksumtype = 0x8003` and `seq-number = 0` at `impacket/krb5/kerberosv5.py:654-663`, so this detection should be scoped to SMB/LDAP Kerberos AP-REQs.
+
+<a id="ioc-16"></a>
+
+### IoC 16 — Multiple Kerberos authentication pathways in Impacket set `authenticator["seq-number"]` to `0`
+
+**Surface**: Kerberos authentication in TDS/MSSQL, DCE/RPC, SMB, and `kpasswd.py`
+
+
+Across multiple Impacket authentication pathways, the Kerberos Authenticator's `seq-number` field is hardcoded to `0` rather than being randomly generated. This contradicts RFC 4120/windows expected behaviour. The `seq-number` set during context establishment in the AP-REQ Authenticator seeds the per-message sequence counter defined in RFC 4121 Section 4.2.1.
+
+**Expected baseline / proper behaviour**
+
+[RFC 4120 Section 3.2.2](https://datatracker.ietf.org/doc/html/rfc4120#section-3.2) specifies AP-REQ construction and states:
+
+> _"If a sequence number is to be included, it SHOULD be randomly chosen so that even after many messages have been exchanged it is not likely to collide with other sequence numbers in use."_
+
+The Authenticator structure itself is defined in RFC 4120 Section 5.5.1, where `seq-number` is an *optional* `UInt32` field.
+
+MS-KILE (Microsoft's Kerberos extensions specification) does not make any real, or direct comments as to what is done with the sequence-number field. MS-KILE Section 3.2.5.8 describes the AP Exchange but it appears to point towards to RFC 4120 for Authenticator construction. In practice, Windows SSPI implementations consistently generate a random 32-bit value for this field, making a value of exactly `0` in every session anomalous behavioru when looking at the statistcal values in the field at the enteprise level.
+
+The initial `seq-number` value from the Authenticator then becomes the starting point for the per-message sequence counter described in RFC 4121 Section 4.2.1, which is incremented by one after each `GSS_GetMIC()` or `GSS_Wrap()` token.
+
+**Relevant Code**
+
+`impacket/krb5/kerberosv5.py` — `getKerberosType1()` (used by SMB and DCE-RPC authentication):
+
+```python
+authenticator['seq-number'] = 0
+```
+
+`impacket/tds.py` — `kerberosLogin()` (used by MSSQL authentication):
+
+```python
+authenticator["seq-number"] = 0
+```
+
+`impacket/krb5/kerberosv5.py` — `getKerberosTGS()` (TGS requests): the `seq-number` field is omitted entirely from the Authenticator, which is technically valid since the field is defined as *optional* but windows clients appear to consistently include it.
+
+`impacket/krb5/kpasswd.py` — Allows the caller to set the number. Meaning that we can still get an unexpected single digit integer. Only if nothing is set by the caller, does it follow the RFC process:
+
+```python
+if sequenceNumber is None:
+    sequenceNumber = int.from_bytes(get_random_bytes(4), "big")
+```
+
+Like others, this is trivial to fix and so should be used in context of so many of the other IoCs present to confirm definitve impacket abuse. The below one liner would be sufficient to fix the matter.
+
+```python
+authenticator['seq-number'] = int.from_bytes(os.urandom(4), 'big')
+```
 
 <a id="cat-smb"></a>
 
