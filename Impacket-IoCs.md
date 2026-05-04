@@ -1696,7 +1696,7 @@ else:
 lmChallengeResponse = hmac_md5(responseKeyNT, serverChallenge + clientChallenge) + clientChallenge
 ```
 
-As we can glean from above, impacket has no conditional check exists to send `Z(24)` when `MsvAvTimestamp` is present.
+As we can glean from above, impacket has no conditional check exists to send `Z(24)` when `MsvAvTimestamp` is present. An additional detection for this that would make it an almost "garuntee" hit for Impacket NTLM use is an LM challenge response being sent with the relevant Lmhash being a impacket set default; `DEFAULT_LM_HASH = binascii.unhexlify('AAD3B435B51404EEAAD3B435B51404EE')`. This allows us to eliminate the probablity of any normal clients/behaviours being caught up in this detection as within the ntlm.py implementation; if the caller does not provide the APIs in the ntlm class a lmhash then the compute_lmhash function defaults to returning the above default. 
 
 ## NTLMSSP_NEGOTIATE_ALWAYS_SIGN Not Always Set
 
@@ -1810,7 +1810,7 @@ When observing NTLMv2 authentication against a modern Windows server a exchange 
 |---|---|---|
 | MIC field | Computed and populated | Empty / zeros |
 | MsvAvFlags bit 0x2 | Set (indicating MIC present) | Absent |
-| LmChallengeResponse | Z(24) when timestamp present | Full LMv2 computation |
+| LmChallengeResponse | Z(24) when timestamp present | Full LMv2 computation with default `DEFAULT_LM_HASH = binascii.unhexlify('AAD3B435B51404EEAAD3B435B51404EE')` |
 | MsvAvChannelBindings | Present (Z(16) if no binding) | Absent by default |
 | NTLMSSP_NEGOTIATE_ALWAYS_SIGN | Always set (MUST) | Only when signingRequired=True |
 | ExportedSessionKey bytes | Full 0x00-0xFF range | ASCII alphanumeric only |
