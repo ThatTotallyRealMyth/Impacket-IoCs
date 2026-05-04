@@ -17,7 +17,7 @@
   - [IoC 12 - `raiseChild.py` forged parent access injects Enterprise Admin SID `-519` as an ExtraSid](#ioc-12)
   - [IoC 13 - Kerberos SPNEGO advertises the legacy Microsoft Kerberos OID but wraps the AP-REQ with the standard Kerberos OID](#ioc-13)
   - [IoC 14 - LDAP Kerberos bind sends raw `AP-REQ` as the SPNEGO mechToken](#ioc-14)
-  - [IoC 15 - SMB/LDAP Kerberos AP-REQ authenticators omit the RFC 4121 checksum and sequence number](#ioc-15)
+  - [IoC 15 - SMB/ldap3 Kerberos AP-REQ authenticators omit the RFC 4121 checksum and sequence number](#ioc-15)
   - [IoC 16 - Multiple Kerberos Authentication pathways used in Impacket set `authenticator` sequence number to 0](#ioc-16)
 - [SMB](#cat-smb)
   - [IoC 16 - SMB2/3 client uses ASCII-letter `ClientGuid`](#ioc-16)
@@ -810,10 +810,10 @@ request = ldap3.operation.bind.bind_operation(connection.version, ldap3.SASL, us
 
 <a id="ioc-15"></a>
 
-### IoC 15 - SMB/LDAP Kerberos AP-REQ authenticators omit the RFC 4121 checksum and sequence number
+### IoC 15 - SMB/ldap3 Kerberos AP-REQ authenticators omit the RFC 4121 checksum and sequence number
 **Surface:** Decrypted Kerberos AP-REQ authenticator, service-side instrumentation, lab packet decryption with service key
 
-For SMB3 Kerberos and the LDAP Kerberos helper, Impacket builds the AP-REQ authenticator with only `authenticator-vno`, `crealm`, `cname`, `cusec`, and `ctime`. It omits the GSS-API checksum type `0x8003` and omits the authenticator sequence number. Interestingly, Impacket's DCE/RPC Kerberos path does add those fields, making the omission in the SMB/LDAP paths a lot more obvious in context.
+For SMB3 Kerberos and the ldap3 Kerberos helper, Impacket builds the AP-REQ authenticator with only `authenticator-vno`, `crealm`, `cname`, `cusec`, and `ctime`. It omits the GSS-API checksum type `0x8003` and omits the authenticator sequence number. Interestingly, Impacket's DCE/RPC Kerberos path does add those fields, making the omission in the SMB/LDAP paths a lot more obvious in context.
 
 **Expected / proper baseline**
 
@@ -821,7 +821,7 @@ RFC 4121 says the authenticator in a Kerberos GSS `KRB_AP_REQ` must include the 
 
 **How to find it**
 
-When checking the decrypted AP-REQ authenticators for SMB/LDAP and noting when:
+When checking the decrypted AP-REQ authenticators for SMB/ldap3 and noting when:
 
 - `cksum` is absent
 
@@ -855,7 +855,7 @@ authenticator['ctime'] = KerberosTime.to_asn1(now)
 encodedAuthenticator = encoder.encode(authenticator)
 ```
 
-The DCE/RPC Kerberos path does set `cksumtype = 0x8003` and `seq-number = 0` at `impacket/krb5/kerberosv5.py:654-663`, so this detection should be scoped to SMB/LDAP Kerberos AP-REQs.
+The DCE/RPC Kerberos path does set `cksumtype = 0x8003` and `seq-number = 0` at `impacket/krb5/kerberosv5.py:654-663`, so this detection should be scoped to SMB/ldap3 Kerberos AP-REQs. Additioanly, the standard impacket native LDAP implementation(impacket/ldap/ldap.py) does set the seq-number attribute properly, it does so by setting it to 0; which leads us to the next IoC. 
 
 <a id="ioc-16"></a>
 
@@ -880,7 +880,7 @@ The initial `seq-number` value from the Authenticator then becomes the starting 
 
 **Relevant Code**
 
-`impacket/krb5/kerberosv5.py` — `getKerberosType1()` (used by SMB and DCE-RPC authentication):
+`impacket/krb5/kerberosv5.py` — `getKerberosType1()`:
 
 ```python
 authenticator['seq-number'] = 0
@@ -893,6 +893,14 @@ authenticator["seq-number"] = 0
 ```
 
 `impacket/krb5/kerberosv5.py` — `getKerberosTGS()` (TGS requests): the `seq-number` field is omitted entirely from the Authenticator, which is technically valid since the field is defined as *optional* but windows clients appear to consistently include it.
+
+`impacket/ldap/ldap.py:line 284`:
+
+```python
+authenticator['cksum']['checksum'] = chkField.getData()
+        authenticator['seq-number'] = 0
+        encodedAuthenticator = encoder.encode(authenticator)
+```
 
 `impacket/krb5/kpasswd.py` — Allows the caller to set the number. Meaning that we can still get an unexpected single digit integer. Only if nothing is set by the caller, does it follow the RFC process:
 
