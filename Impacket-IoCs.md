@@ -3371,7 +3371,7 @@ The TDS LOGIN7 structure defaults `ClientID` to the constant bytes `01 02 03 04 
 
 **Expected / proper baseline**
 
-MS-TDS defines `ClientPID` as the client application's process ID, `HostName` as the client machine name, `AppName` as the client application name, and `ClientID` as the NIC/MAC-based client ID. Reference: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tds/773a62b6-ee89-4c02-9e5e-344882630aac.
+MS-TDS defines `ClientPID` as the client application's process ID, which in Windows will generally be 1000–65535 for a standard/user application, `HostName` as the client machine name, `AppName` as the client application name, and `ClientID` as the NIC/MAC-based client ID. Reference: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tds/773a62b6-ee89-4c02-9e5e-344882630aac.
 
 **How to find it**  
 
