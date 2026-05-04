@@ -71,6 +71,7 @@
   - [IoC 59 - MSSQL PRELOGIN uses fixed version bytes, `MSSQLServer`, and encryption-off negotiation](#ioc-59)
   - [IoC 60 - `mssqlshell.py` upload path echoes base64 chunks to `.b64`, decodes with `certutil`, then validates MD5](#ioc-60)
   - [IoC 61 - `mssqlshell.py` SQL Agent execution creates self-deleting `IdxDefrag<GUID>` CmdExec jobs](#ioc-61)
+  - [IoC 68 - `tds.py` `Kerberoslogin()` function adds the raw AP-REQ into the `mechToken` field directly](#ioc-69)
 - [ntlmrelayx HTTP, WebDAV, RDP, and SCCM](#cat-ntlmrelayx-http-webdav-rdp-and-sccm)
   - [IoC 62 - ntlmrelayx HTTP/WinRM local-auth challenge has empty AV pairs and printable challenge material](#ioc-62)
   - [IoC 63 - ntlmrelayx WPAD serves a fixed PAC body with compact `FindProxyForURL` formatting](#ioc-63)
