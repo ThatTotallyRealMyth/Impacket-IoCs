@@ -1938,11 +1938,21 @@ Impacket's DCE/RPC implementation uses initial `call_id = 1` on the Bind and onl
 
 ![Pasted image 20260429143231](images/Pasted%20image%2020260429143231.png)
 
-Compared with enumerating services remotely from the Windows server, we send an additional context item:
+Compared with enumerating services remotely from the Windows server, we send an additional context item, Bind Negotiation:
 
 ![Pasted image 20260429143430](images/Pasted%20image%2020260429143430.png)
 
-Note that I have not been able to appropriately hunt and trace down which versions of Windows would default to sending this as opposed to not. For readers capable, this may be a useful to check within your environments to at least try to capture as many systems that would have this. 
+When looking at the relevant MS-RPCE [section 3.3.1.5.3](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/87964b3c-1785-4aae-a993-734999441ed3) on Bind Time negotitation, the language, to me at least, appears to indicate that a client is expected to be sending the Bind Time neogitiation:
+
+> _"When sending a bind PDU, a client SHOULD add an element in the p_cont_elem array that has the same value for the abstract_syntax field as the previous element in the p_cont_elem array, but that MUST have exactly one element in the transfer_syntaxes array; also, its if_uuid field MUST have the following prefix: 6CB71C2C-9812-4540 and a version number of 1.0."_
+
+Within the section, we can see footnote <99> thats pointing us to [Appendix B: Product Behaviour]([https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/87964b3c-1785-4aae-a993-734999441ed3](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/9039a59f-3075-4680-9517-19239bebf155#Appendix_A_99), which adds additioanly econtext to the bind time negotiation behaviour:
+
+> _"<99> Section 3.3.1.5.3: Windows clients and servers in Windows Server 2003 and earlier do not support the bind time feature negotiation, the server uses the behavior specified in [C706], and the client does not indicate support for bind time feature negotiation and security context multiplexing. Otherwise, the server uses the message processing rules in this section, and clients always indicate support for bind time feature negotiation and for security context multiplexing. Windows allows a client to disable proposing use of the bind time feature negotiation through configuration."_
+
+While my conclusion may incorrect(feel free to correct in issues :D), when looking at both sections then appears to be that on modern Windows, clients are expected to send the bind time negotiation context item by default. This tracks with our anectodel traffic analysis in which we see our Windows server 2022 including the feature.
+
+TLDR: The Windows RPC runtime will include the bind time feature negotiation context item in the `p_cont_elem` array by default (with UUID prefix 6CB71C2C-9812-4540 and version 1.0). The relevant spec entry uses "SHOULD" for the client adding the element, but the product behavior note says "clients always indicate support", which I interpret to mean that in practice, Windows will clients send the Bind Time negotiation context item unless explicitly configured otherwise.
 
 **How to find it**
 
@@ -1958,7 +1968,6 @@ Decode DCE/RPC bind PDUs and add risk when:
 
 - Only one context item sent, with a missing `Bind Time Feature Negotiation Context` being sent.
 
-To expand on this additionally, the [Microsoft](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/87964b3c-1785-4aae-a993-734999441ed3) does not state/expand on if this is required to be spec compliant. Likely that a certain version of Windows started including this and thus can be used as a good threshold to remove/clear false positives within the environment. 
 
 **Relevant code**
 
