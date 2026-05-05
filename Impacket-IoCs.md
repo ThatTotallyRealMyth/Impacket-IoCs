@@ -262,6 +262,18 @@ Some others in a digestible format include:
 | `etype`          | Single AES cipher (often)      | Broad list including RC4         |
 | `addresses`      | Absent                         | Host NetBIOS name present        |
 
+Something additional I have noticed since documenting this IoC is from [MS-KILE Section 3.2.5.5](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/a6adb34c-b6bb-42f4-afb8-8cd989cbadc1#Appendix_A_Target_39):
+
+> If EnableCBACandArmor is TRUE, the client SHOULD behave as follows:
+> 
+> 1. When sending the AS-REQ, add a PA-PAC-OPTIONS [167] (section 2.2.10) padata type with the Claims bit set in the AS-REQ to request claims authorization data.
+> 
+> 2. When receiving the KRB\_AS\_REP message, if the Claims bit is set in PA-SUPPORTED-ENCTYPES [165] structure (section 2.2.8), and not set in PA-PAC-OPTIONS [167] structure (section 2.2.10), the client locates a DS\_BEHAVIOR\_WIN2012 DC (section 3.2.5.3) and returns to step 1.
+
+The above section expands on a enviroment-dependent configuration,in which Windows client with EnableCBACandArmor set to true will include PA-PAC-OPTIONS (padata type 167) with the Claims bit set in the AS-REQ. Impacket never includes this padata type in the AS exchange as Impacket doesnt appear to query/check for if `EnableCBACandArmor` is set in the domain we are operating in. Additionaly, the Windows client implements a fallback loop in which if the KDC's PA-SUPPORTED-ENCTYPES [165] response indicates Claims support but the reply's PA-PAC-OPTIONS does not echo the Claims bit, the client locates a Server 2012+ DC and retries. Impacket has no such negotiation or retry logic(which is predictable in context).
+
+The point of this being mentioned is that if one is operating in an enviroment configured with DAC/CBAC, which are limited to Windows Server 2012 or later in order to support claims-aware Kerberos tickets, then additional care should be taken as clients will follow a behvaiour set that Impacket will not. Note that FAST is not needed for most Impacket use cases, as we generally don't expect to be operating from a domain-joined host.
+
 <a id="ioc-02"></a>
 
 ### IoC 02 - AS-REQ requested lifetime has `till == rtime == now + 1 day`
