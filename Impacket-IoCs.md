@@ -1476,7 +1476,7 @@ Now another set of fingerprinting, that confusingly kicks in from our above disc
 
 The Impacket WMI session setup creates `IWbemLevel1Login`, calls `NTLMLogin`, and then releases interfaces. Although Impacket contains support for some of the structures below in `wmi.py`, the behavior is easy to miss because it is nested inside the library and is not heavily documented.
 
-Impacket using wmiexec/wmiquery is observed to not use the `SetClientInfo` to obtain the actual remote server name and PID as well as not using the `EstablishPosition` method to determine the locales that are supported between the two client/server. 
+Impacket using wmiexec/wmiquery is observed to not use the `SetClientInfo` to obtain the actual remote server name and PID as well as not using the `EstablishPosition` method to determine the locales that are supported between the two client/server. Another issue after this would be that even if one would call `SetClientInfo`, as we can see from the function signature, `SetClientInfo(self, wszClientMachine, lClientProcId = 1234)`; we would be passing a fake PID as opposed to the proper pid as per MS-WMI §3.2.3 footnote <77>: _"Windows clients pass the client process ID in the lClientProcId parameter."_
 
 Impacket's `DCOMConnection` class maintains a "fake" object table locally and so It doesn't need to query `IRemUnknown`. Impacket then constructs ORPC calls directly using the IPID from `RemoteCreateInstance` without verifying interface availability via `RemQueryInterface`
 
