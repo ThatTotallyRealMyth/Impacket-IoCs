@@ -2128,6 +2128,28 @@ Overall the violation of the spec alongside the additional network class to aski
   
 For authenticated DCE/RPC, Impacket sets the security trailer `auth_context_id` to `self._ctx + 79231`. With the usual first presentation context, that means `auth_context_id = 79231` (`0x0001357f`). When padding is needed before the security trailer, Impacket fills the padding with `0xff` bytes.
 
+I also want to point towards something found within Impacket that deals with DCERPC, which is the library appears to support something noted as "bogus_binds". Now I am not exactly sure what that is however, it does appear to be just bogus DCERPC packets that have malformed or inappropriate data that would be rejected. The source code made comments to it in `rpcrt.pu` lines 1526 to 1540:
+
+```python
+def bind(self, iface_uuid, alter = 0, bogus_binds = 0, transfer_syntax = ('8a885d04-1ceb-11c9-9fe8-08002b104860', '2.0')):
+        bind = MSRPCBind()
+        #item['TransferSyntax']['Version'] = 1
+        ctx = self._ctx
+        for i in range(bogus_binds):
+            item = CtxItem()
+            item['ContextID'] = ctx
+            item['TransItems'] = 1
+            item['ContextID'] = ctx
+            # We generate random UUIDs for bogus binds
+            item['AbstractSyntax'] = generate() + stringver_to_bin('2.0')
+            item['TransferSyntax'] = uuidtup_to_bin(transfer_syntax)
+            bind.addCtxItem(item)
+            self._ctx += 1
+            ctx += 1
+```
+
+This somehow may be something potentialy detectable or otherwise deployable as part of a broader signuture cluster detector Its notable that by default, when binding; no "bogus" binds would be preformed but that it may if the operator specifies it.
+
 **Expected / proper baseline**
 
 MS-RPCE defines `auth_context_id` as the numeric identifier for the security context used on the RPC connection; Microsoft's secure RPC examples use client-chosen context ID `1`, and the server indexes security contexts by this field. References: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/ab45c6a5-951a-4096-b805-7347674dc6ab and https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/074feef6-d1dd-4066-8434-16cc4763dd8b.
