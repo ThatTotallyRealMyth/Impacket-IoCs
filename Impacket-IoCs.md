@@ -19,6 +19,7 @@
   - [IoC 14 - LDAP Kerberos bind sends raw `AP-REQ` as the SPNEGO mechToken](#ioc-14)
   - [IoC 15 - SMB/ldap3 Kerberos AP-REQ authenticators omit the RFC 4121 checksum and sequence number](#ioc-15)
   - [IoC 16 - Multiple Kerberos Authentication pathways used in Impacket set `authenticator` sequence number to 0](#ioc-16)
+  - [IoC 17 - Impackets Kerberos implementation does not check for `EnableCBACandArmor` to alter ticket requests](#ioc-17)
 - [SMB](#cat-smb)
   - [IoC 16 - SMB2/3 client uses ASCII-letter `ClientGuid`](#ioc-16)
   - [IoC 17 - SMB2/3 negotiate request contains multiple omissions compared to Windows](#ioc-17)
@@ -926,6 +927,33 @@ Like others, this is trivial to fix and so should be used in context of so many 
 ```python
 authenticator['seq-number'] = int.from_bytes(os.urandom(4), 'big')
 ```
+
+### IoC 17 - Impackets Kerberos implementation does not check for `EnableCBACandArmor` to alter ticket requests
+
+**Surface**: Kerberos Authentication/TGS and AS exchanges
+
+`EnableCBACandArmor` is a registry setting defined in MS-KILE that indicates the Kerberos client is claims, compound authentication, and FAST-aware. When set to TRUE, this setting causes two changes to the Kerberos exchanges. First, during the AS exchange, the client adds a PA-PAC-OPTIONS padata type with the Claims bit set in the AS-REQ to request claims authorization data; it does the same in the TGS exchange, notifying the KDC that the client is claims-aware. The second is that the client will use FAST (Flexible Authentication Secure Tunneling), as defined in RFC 6113, as long as the client is not a computer account, the client is running on a domain joined device and their realm supports it. One of the practical things this does is it allows for armor Kerberos messages in domains that support these features, with "armoring" here being the FAST mechanism that fully encrypts Kerberos messages and signs Kerberos errors, as part of the broader Dynamic Access Control framework introduced with Windows Server 2012-level domain controllers. This prevents the ability to preform ASREProasting attack. 
+
+Impacket does not have any support/concept of `EnableCBACandArmor` flag and configuration. That means that many things that may be found/expected in an enviroment thats set the flag, will not be omitted/appropraitely constrcuted by impacket. 
+
+**Expected/Proper client behaviour**:
+
+When the flag is set, the following changes/behvaiours as defined in MS-KILE are expected:
+**AS Exchange (MS-KILE 3.2.5.5)**
+
+- The client sets the Claims bit in PA-PAC-OPTIONS [167] in the AS-REQ, requesting claims authorization data.
+
+- On receiving the AS-REP, if the Claims bit is present in PA-SUPPORTED-ENCTYPES [165] but missing from PA-PAC-OPTIONS [167], the client locates a DS_BEHAVIOR_WIN2012 DC and retries the AS-REQ from there.
+
+**TGS Exchange (MS-KILE 3.2.5.7)**
+
+- The client sets the Claims bit in PA-PAC-OPTIONS [167] in the TGS-REQ, notifying the KDC it is claims-aware, and uses FAST (RFC 6113) when the realm supports it.
+
+- If the application server's realm TGT has the Compound Identity bit set in PA-SUPPORTED-ENCTYPES [165], the client sends a compound identity TGS-REQ using FAST with explicit armoring via the computer's TGT.
+
+- If a server principal unknown with a substatus of NTSTATUS STATUS_NO_SECRETS message (MS-ERREF section 2.3.1) is returned, the client sends an AS-REQ adding a PA-PAC-OPTIONS [167] (MS-KILE section 2.2.10) padata type, with the Forward to Full DC bit set, to a full DC, and then send a new KRB_TGS_REQ message using this TGT to the full DC.
+
+As this is something very contextual and enviroment specific, the exact context and detection processes will defer. This will be updated later on but for now, its been included in case others may be better placed than I am in exploring/expanding this. 
 
 <a id="cat-smb"></a>
 
