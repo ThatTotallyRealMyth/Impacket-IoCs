@@ -936,6 +936,8 @@ authenticator['seq-number'] = int.from_bytes(os.urandom(4), 'big')
 
 Impacket does not have any support/concept of `EnableCBACandArmor` flag and configuration. That means that many things that may be found/expected in an enviroment thats set the flag, will not be omitted/appropraitely constrcuted by impacket. 
 
+A practical example wouold be when looking into `PA-PAC-OPTIONS` in `AS-REQ` (§3.2.5.5), when `EnableCBACandArmor` is TRUE, the AS-REQ should include PA-PAC-OPTIONS with the Claims bit set, but Impacket would not appropriately set the flag.
+
 **Expected/Proper client behaviour**:
 
 When the flag is set, the following changes/behvaiours as defined in MS-KILE are expected:
@@ -953,7 +955,19 @@ When the flag is set, the following changes/behvaiours as defined in MS-KILE are
 
 - If a server principal unknown with a substatus of NTSTATUS STATUS_NO_SECRETS message (MS-ERREF section 2.3.1) is returned, the client sends an AS-REQ adding a PA-PAC-OPTIONS [167] (MS-KILE section 2.2.10) padata type, with the Forward to Full DC bit set, to a full DC, and then send a new KRB_TGS_REQ message using this TGT to the full DC.
 
-As this is something very contextual and enviroment specific, the exact context and detection processes will defer. This will be updated later on but for now, its been included in case others may be better placed than I am in exploring/expanding this. 
+**How to detect**:
+
+As this is something very contextual and enviroment specific, the exact context and detection processes will defer. The main detection is looking for what is and isnt expected based on the value: 
+
+- Absence of PA-FX-FAST-REQUEST (padata 136) in AS-REQ/TGS-REQ on domains with FAST support enabled. Note that the caveat for this is that it only best works if the client also has support for FAST. So both releams and clients need to support it; complicating detection a little bit.
+
+- Claims bit not set in PA-PAC-OPTIONS (padata 167) in AS-REQ and TGS-REQ on domains with `EnableCBACandArmor` set.
+
+- No compound identity in TGS-REQ when the target realm's PA-SUPPORTED-ENCTYPES (165) advertises the Compound Identity bit.
+
+- No `enc-authorization-data` field added in TGS-REQ body when sname is not krbtgt.
+
+- Absence of ad-types 141/142/144 in AP-REQ authenticator `authorization-data`.
 
 <a id="cat-smb"></a>
 
