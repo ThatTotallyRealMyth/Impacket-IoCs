@@ -19,7 +19,7 @@
   - [IoC 14 - LDAP Kerberos bind sends raw `AP-REQ` as the SPNEGO mechToken](#ioc-14)
   - [IoC 15 - SMB/ldap3 Kerberos AP-REQ authenticators omit the RFC 4121 checksum and sequence number](#ioc-15)
   - [IoC 16 - Multiple Kerberos Authentication pathways used in Impacket set `authenticator` sequence number to 0](#ioc-16)
-  - [IoC 17 - Impackets Kerberos implementation does not check for `EnableCBACandArmor` to alter ticket requests](#ioc-17)
+  - [IoC 17 - Impacket's Kerberos implementation does not check for `EnableCBACandArmor` to alter ticket requests](#ioc-17)
   - [IoC 18 - Impacket does not set `enc-authorization-data` in its produced TGS-REQ tickets](#ioc-18)
   - [IoC 19 - Impacket does not set `authorization-data` when it constructs an AP-REQ](#ioc-19)
 - [SMB](#cat-smb)
@@ -38,7 +38,7 @@
   - [IoC 31 - Impacket WMI scripts skip various exchanges before `NTLMLogin`](#ioc-31)
   - [IoC 32 - NTLM Type 1 uses a static no-version flag shape](#ioc-32)
   - [IoC 33 - NTLMv2 response omits Windows AV pairs and sends a NULL host name](#ioc-33)
-  - [IoC 34 - Impackets NTLM class contains various Spec(MS-NLMP) Deviations and Potential Violations](#ioc-34)
+  - [IoC 34 - Impacket's NTLM class contains various Spec(MS-NLMP) Deviations and Potential Violations](#ioc-34)
 - [LDAP and Active Directory objects](#cat-ldap-and-active-directory-objects)
   - [IoC 35 - `BadSuccessor.py` creates dMSAs named `dMSA-<8 uppercase alnum>` with fixed migration attributes](#ioc-35)
   - [IoC 36 - `addcomputer.py` default computer objects use `DESKTOP-[A-Z0-9]{8}$`](#ioc-36)
@@ -76,7 +76,7 @@
   - [IoC 64 - MSSQL PRELOGIN uses fixed version bytes, `MSSQLServer`, and encryption-off negotiation](#ioc-64)
   - [IoC 65 - `mssqlshell.py` upload path echoes base64 chunks to `.b64`, decodes with `certutil`, then validates MD5](#ioc-65)
   - [IoC 66 - `mssqlshell.py` SQL Agent execution creates self-deleting `IdxDefrag<GUID>` CmdExec jobs](#ioc-66)
-  - [IoC 67 - `tds.py` `Kerberoslogin()` function adds the raw AP-REQ into the `mechToken` field directly](#ioc-67)
+  - [IoC 67 - `tds.py` `KerberosLogin()` function adds the raw AP-REQ into the `mechToken` field directly](#ioc-67)
 - [ntlmrelayx HTTP, WebDAV, RDP, and SCCM](#cat-ntlmrelayx-http-webdav-rdp-and-sccm)
   - [IoC 68 - ntlmrelayx HTTP/WinRM local-auth challenge has empty AV pairs and printable challenge material](#ioc-68)
   - [IoC 69 - ntlmrelayx WPAD serves a fixed PAC body with compact `FindProxyForURL` formatting](#ioc-69)
@@ -933,7 +933,7 @@ authenticator['seq-number'] = int.from_bytes(os.urandom(4), 'big')
 
 <a id="ioc-17"></a>
 
-### IoC 17 - Impackets Kerberos implementation does not check for `EnableCBACandArmor` to alter ticket requests
+### IoC 17 - Impacket's Kerberos implementation does not check for `EnableCBACandArmor` to alter ticket requests
 
 **Surface**: Kerberos Authentication/TGS and AS exchanges
 
@@ -1000,7 +1000,7 @@ We can see the missing `enc-authorization-data` field. It's completely absent fr
 
 **Relevant Code**:
 
-Impackets `getKerberosTGS()` function does not fill in/set the relevant values.
+Impacket's `getKerberosTGS()` function does not fill in/set the relevant values.
 
 
 <a id="ioc-19"></a>
@@ -2685,7 +2685,7 @@ The Windows baseline performs an `IOXIDResolver` bind and `ServerAlive2` call be
   
 In the Impacket WMI flow, the client goes straight to `ISystemActivator::RemoteCreateInstance`. No call to `IOXIDResolver::ServerAlive2` is observed. 
 
-Impackets behaviour is a deviation from the MS-DCOM specification, in which [section 2.1](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/d6cf8092-6425-48e3-8a36-5fa313374598) states:
+Impacket's behaviour is a deviation from the MS-DCOM specification, in which [section 2.1](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/d6cf8092-6425-48e3-8a36-5fa313374598) states:
 
 > _"DCOM is based on RPC, and implementations SHOULD support the use of any RPC protocol sequence available in the underlying RPC implementation. The client SHOULD discover an initial working RPC protocol by calling the object resolver on multiple protocols. IObjectExporter::ServerAlive2 (Opnum 5) SHOULD be used for this purpose, and then any RPC protocol to which the object resolver responds SHOULD be used."_
 
@@ -3795,7 +3795,7 @@ Hunt SQL telemetry and MSDB remnants for:
 ```
 <a id="ioc-67"></a>
 
-### IoC 67 - `tds.py` `Kerberoslogin()` function adds the raw AP-REQ into the `mechToken` field directly
+### IoC 67 - `tds.py` `KerberosLogin()` function adds the raw AP-REQ into the `mechToken` field directly
 
 Impacket's TDS Kerberos authentication places a raw DER-encoded AP-REQ (leading byte `0x6E`) directly into the SPNEGO NegTokenInit mechToken field, which is excluding/omitting both the GSS-API InitialContextToken framing (0x60 wrapper with KRB5 OID) and the two-byte TOK_ID prefix (01 00) that RFC 1964 Section 1.1 and RFC 4121 Section 4.1 require before context establishment messages.
 
