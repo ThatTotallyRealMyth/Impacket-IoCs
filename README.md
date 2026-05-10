@@ -146,3 +146,8 @@ A practical approach is:
 6. Re-test detections when Impacket or Windows behavior changes.
 
 As these things usually are, its a cat and mouse game. I have no doubt that the detections spelled out here will soon become obselete but when they do, I hope that the next person out does me and the rest : ) 
+
+## Stargazers over time
+[![Stargazers over time](https://starchart.cc/ThatTotallyRealMyth/Impacket-IoCs.svg?variant=dark)](https://starchart.cc/ThatTotallyRealMyth/Impacket-IoCs)
+
+
