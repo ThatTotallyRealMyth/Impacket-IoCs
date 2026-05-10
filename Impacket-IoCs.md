@@ -1151,7 +1151,7 @@ As we can see from above, since the Domain Controller is enforcing SMB signing, 
 
 In comparison with Impacket, we can see that the flag is never set even tho the domain controller is expecting it:
 
-![Screenshot 2026-05-10 at 11.45.38 AM.png](images/Screenshot202026-05-10at11.45.38AM.png)
+![Screenshot 2026-05-10 at 11.45.38 AM.png](images/Screenshot2026-05-10at11.45.38AM.png)
 
 Impacket sticks with setting the Signing Enabled flag to be true and keeping the signing required flag false. When looking at MS-SMB2 Section 3.2.4.2.2.2 , we can see the following:
 
