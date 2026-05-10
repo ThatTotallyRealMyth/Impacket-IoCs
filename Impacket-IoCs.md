@@ -1013,8 +1013,8 @@ As per [MS-KILE Section 3.2.5.8](https://learn.microsoft.com/en-us/openspecs/win
 
 ![](images/Screenshot2026-05-10at2.55.53PM.png)
 
-Looking at the authorization-data inside the authenticator — this is the content Impacket never sends. All four ad-types from the spec are present:
-ad-type 141 (KERB_AUTH_DATA_TOKEN_RESTRICTIONS):
+Looking at the authorization-data inside the authenticator, this is the content Impacket never sends. All four ad-types from the spec are present:
+ad-type 141 (`KERB_AUTH_DATA_TOKEN_RESTRICTIONS`):
 ```
 restriction-type: 0
 restriction: 0000000000400000....
@@ -1029,7 +1029,7 @@ AD-AP-Options: 0x00004000, ChannelBindings
     0... .... .... .... = UnverifiedTargetName: Not set
 ```
 
-This is KERB_AP_OPTIONS_CBT (0x4000) — the channel binding flag. This is may seem off because this is plain LDAP on port 389, not LDAPS. The point is that the Windows client is still setting the channel binding flag to indicate it supports channel binding. The UnverifiedTargetName bit is not set, meaning the client verified the SPN against a trusted source.
+This is `KERB_AP_OPTIONS_CBT` (0x4000), the channel binding flag. This is may seem off because this is plain LDAP on port 389, not LDAPS. The point is that the Windows client is still setting the channel binding flag to indicate it supports channel binding. The UnverifiedTargetName bit is not set, meaning the client verified the SPN against a trusted source.
 
 ad-type 144 (`KERB_AUTH_DATA_CLIENT_TARGET`):
 `Target Principal`: ldap/dc.sccmlab.local/sccmlab.local@SCCMLAB.LOCAL
