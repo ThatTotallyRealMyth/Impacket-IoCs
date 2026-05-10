@@ -943,6 +943,7 @@ A practical example would be when looking into `PA-PAC-OPTIONS` in `AS-REQ` (§3
 **Expected/Proper client behaviour**:
 
 When the flag is set, the following changes/behaviours as defined in MS-KILE are expected:
+
 **AS Exchange (MS-KILE 3.2.5.5)**
 
 - The client sets the Claims bit in PA-PAC-OPTIONS [167] in the AS-REQ, requesting claims authorization data.
