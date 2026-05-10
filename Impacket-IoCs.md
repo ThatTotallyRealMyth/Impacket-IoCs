@@ -26,7 +26,7 @@
   - [IoC 20 - SMB2/3 client uses ASCII-letter `ClientGuid`](#ioc-20)
   - [IoC 21 - SMB2/3 negotiate request contains multiple omissions compared to Windows](#ioc-21)
   - [IoC 22 - SMB1 client negotiate offers only `NT LM 0.12`](#ioc-22)
-  - [IoC 23 - SMB2/3 Session Setup Request does not set `Security Mode` based on clients negotiate respone](#ioc-23)
+  - [IoC 23 - SMB2/3 Session Setup Request does not set `Security Mode` based on clients negotiate response](#ioc-23)
 - [NTLM and SPNEGO](#cat-ntlm-and-spnego)
   - [IoC 24 - NTLM implementation omissions in various fields](#ioc-24)
   - [IoC 25 - `ntlmrelayx` LDAP computer creation: 8 uppercase letters plus `$`](#ioc-25)
@@ -38,7 +38,7 @@
   - [IoC 31 - Impacket WMI scripts skip various exchanges before `NTLMLogin`](#ioc-31)
   - [IoC 32 - NTLM Type 1 uses a static no-version flag shape](#ioc-32)
   - [IoC 33 - NTLMv2 response omits Windows AV pairs and sends a NULL host name](#ioc-33)
-  - [IoC 34 - Impackets NTLM class contains various Spec(MS-NMLP) Deviations and Potential Violations](#ioc-34)
+  - [IoC 34 - Impackets NTLM class contains various Spec(MS-NLMP) Deviations and Potential Violations](#ioc-34)
 - [LDAP and Active Directory objects](#cat-ldap-and-active-directory-objects)
   - [IoC 35 - `BadSuccessor.py` creates dMSAs named `dMSA-<8 uppercase alnum>` with fixed migration attributes](#ioc-35)
   - [IoC 36 - `addcomputer.py` default computer objects use `DESKTOP-[A-Z0-9]{8}$`](#ioc-36)
@@ -1231,7 +1231,7 @@ sessionSetup['Data']['NativeLanMan']  = 'Samba'
 
 <a id="ioc-23"></a>
 
-### IoC 23 - SMB2/3 Session Setup Request does not set `Security Mode` based on clients negotiate respone
+### IoC 23 - SMB2/3 Session Setup Request does not set `Security Mode` based on clients negotiate response
 
 **Surface**: SMB2/3 Negotiate Request and Response exchange
 
@@ -1882,7 +1882,7 @@ ntlmChallengeResponse['host_name'] = type1.getWorkstation().encode('utf-16le')
 
 <a id="ioc-34"></a>
 
-### IoC 34 - Impacket NTLM implementation/class contains Spec & Product Behaviour Deviations/Violations
+### IoC 34 - Impacket NTLM implementation/class contains Spec & Product Behavior Deviations/Violations
 
 
 ## No MIC (Message Integrity Code) Computed
