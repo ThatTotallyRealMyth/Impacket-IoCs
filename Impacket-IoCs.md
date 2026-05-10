@@ -559,6 +559,7 @@ for optionalType in (PAC_UPN_DNS_INFO, PAC_ATTRIBUTES_INFO, PAC_REQUESTOR_INFO):
 bufferOrder.extend([PAC_SERVER_CHECKSUM, PAC_PRIVSVR_CHECKSUM])
 ```
 
+Something I noticed filling out this IoC is that it appears that ticketer also sets the sessionkey entry to be acssi letters instead of the full byte range that would be expected : ) 
 
 <a id="ioc-10"></a>
 
