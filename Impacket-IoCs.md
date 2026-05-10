@@ -1038,7 +1038,8 @@ AD-AP-Options: 0x00004000, ChannelBindings
 This is `KERB_AP_OPTIONS_CBT` (0x4000), the channel binding flag. This is may seem off because this is plain LDAP on port 389, not LDAPS. The point is that the Windows client is still setting the channel binding flag to indicate it supports channel binding. The UnverifiedTargetName bit is not set, meaning the client verified the SPN against a trusted source.
 
 ad-type 144 (`KERB_AUTH_DATA_CLIENT_TARGET`):
-`Target Principal`: ldap/dc.sccmlab.local/sccmlab.local@SCCMLAB.LOCAL
+
+Target Principal: `ldap/dc.sccmlab.local/sccmlab.local@SCCMLAB.LOCAL`
 
 The fully qualified target SPN including realm. This lets the server verify the ticket is being presented to the intended service.
 
