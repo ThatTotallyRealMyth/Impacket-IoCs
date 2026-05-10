@@ -1892,7 +1892,9 @@ ntlmChallengeResponse['host_name'] = type1.getWorkstation().encode('utf-16le')
 
 **Windows behaviour:** Per Appendix B footnote <50>, all Windows versions from Vista onward compute and include the MIC when `MsvAvTimestamp` is present. The spec also notes (§5.1) that "sending the MIC when the timestamp is present greatly increases security" and that implementations without MIC support "will be vulnerable to message tampering.".
 
-**Impacket behaviour:** The MIC is never computed. The `NTLMAuthChallengeResponse` structure defaults the MIC field to empty, and `getNTLMSSPType3()` never performs the HMAC_MD5 computation. The `MsvAvFlags` AV_PAIR is never added or modified to set bit `0x2`.
+**Impacket behaviour:** The MIC is never computed. The `NTLMAuthChallengeResponse` structure defaults the MIC field to empty, and `getNTLMSSPType3()` never performs the HMAC_MD5 computation. The `MsvAvFlags` AV_PAIR is never added or modified to set bit `0x2`. 
+
+Edit: I have found evidence that in some individual authentication paths in impacket, the MIC was being set by callers. This appears to be dependent on who developed the code as opposed to being a library wide implementation
 
 **Relevant Code**
 
