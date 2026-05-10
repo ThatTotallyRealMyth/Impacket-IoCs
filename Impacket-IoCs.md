@@ -20,6 +20,8 @@
   - [IoC 15 - SMB/ldap3 Kerberos AP-REQ authenticators omit the RFC 4121 checksum and sequence number](#ioc-15)
   - [IoC 16 - Multiple Kerberos Authentication pathways used in Impacket set `authenticator` sequence number to 0](#ioc-16)
   - [IoC 17 - Impackets Kerberos implementation does not check for `EnableCBACandArmor` to alter ticket requests](#ioc-17)
+  - [IoC 18 - Impacket does not set `enc-authorization-data` in its produced TGS-REQ tickets](#ioc-18)
+  - [IoC 19 - Impacket does not set `authorization-data` when it constructs an AP-REQ](#ioc-19)
 - [SMB](#cat-smb)
   - [IoC 16 - SMB2/3 client uses ASCII-letter `ClientGuid`](#ioc-16)
   - [IoC 17 - SMB2/3 negotiate request contains multiple omissions compared to Windows](#ioc-17)
@@ -969,6 +971,92 @@ As this is something very contextual and enviroment specific, the exact context 
 - No `enc-authorization-data` field added in TGS-REQ body when sname is not krbtgt.
 
 - Absence of ad-types 141/142/144 in AP-REQ authenticator `authorization-data`.
+
+### IoC 18 - Impacket does not set `enc-authorization-data` in its produced TGS-REQ tickets
+
+**Surface**: Kerberos Implemention of TGS-REQ, forged tickets using `ticketer.py`
+
+The `enc-authorization-data` field is an optional encrypted container within the TGS-REQ req-body defined in [RFC 4120 §5.4.1](https://www.rfc-editor.org/rfc/rfc4120#section-5.4.1). The field is used by the client to add authorization data entries that are encrypted with the TGS session key (key usage 4 per RFC 4120 §7.5.1), ensuring only the KDC can read them. The KDC copies these entries into the resulting service ticket's `authorization-data` field.
+
+Impacket's getKerberosTGS() in kerberosv5.py does not set the enc-authorization-data field at all. ad-type 141 nor ad-type 142 are present in its TGS-REQ construction when we inspect it using wireshark with the LDAP SASL bind path.
+
+**Expected/Proper Behaviour**:
+
+[MS-KILE Section 3.2.5.7](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/2c42487d-2572-4090-999d-0a2d73d8c946) specifies that when the target server name is not krbtgt, the Windows Kerberos client sends an `enc-authorization-data` field containing KERB_AUTH_DATA_LOOPBACK (ad-type 142) wrapped in an AD-IF-RELEVANT element. Additionally, modern Windows clients (Windows 8/Server 2012 and later) include `KERB_AUTH_DATA_TOKEN_RESTRICTIONS` (ad-type 141) containing a `KERB-AD-RESTRICTION-ENTRY` structure. This is observed over the wire when viewing wireshark but also is noted in [footnote 43](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/1163bb03-7035-433e-b5a4-802247262d18#Appendix_A_43) of the Product Behvaiour Appendix.
+
+We can see the relevant inclusions by the Windows client when observing a LDAP SASL bind in which a TGS-REQ was sent prior:
+
+![Screenshot2026-05-10at2.11.44PM.png](images/Screenshot2026-05-10at2.11.44PM.png)
+
+Now when looking back at Impacket, when seeing the TGS-REQ being sent prior to an LDAP bind:
+
+![](images/Screenshot2026-05-10at2.29.19PM.png)
+
+We can see the missing `enc-authorization-data` field. It's completely absent from the req-body within our TGS-REQ.
+
+**Relevant Code**:
+
+Impackets `getKerberosTGS()` function does not fill in/set the relevant values.
+
+
+### IoC 19 - Impacket does not set `authorization-data` when it constructs an AP-REQ
+
+**Surface**: AP-REQ inside the LDAP SASL bind, Potentially identical issue with SMB2/3 authentication
+
+In the AP-REQ of a LDAP sasl bind, Impacket does not set various flags/types/strutures in the `authorization-data` inside the authenticator section. When binding with impacket, its observed that the structure is missing/unset and filled appropriately:
+
+![](images/Screenshot2026-05-10at2.50.40PM.png)
+
+**Expected/Proper Behaviour**:
+
+As per [MS-KILE Section 3.2.5.8](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/b15648e2-439a-4d04-b8a2-2f34c45690f9), we expect there to be authorization data with ad-types 141/142/143/144. We can see our windows AP-REQ on the LDAP SASL bind including the expected fields:
+
+![](images/Screenshot2026-05-10at2.55.53PM.png)
+
+Looking at the authorization-data inside the authenticator — this is the content Impacket never sends. All four ad-types from the spec are present:
+ad-type 141 (KERB_AUTH_DATA_TOKEN_RESTRICTIONS):
+```
+restriction-type: 0
+restriction: 0000000000400000....
+```
+
+ad-type 142 (`KERB_AUTH_DATA_LOOPBACK`): Same loopback detection data carried from TGS-REQ through to AP-REQ.
+
+ad-type 143 (`AD-AUTH-DATA-AP-OPTIONS`):
+```
+AD-AP-Options: 0x00004000, ChannelBindings
+    .1.. .... .... .... = ChannelBindings: Set
+    0... .... .... .... = UnverifiedTargetName: Not set
+```
+
+This is KERB_AP_OPTIONS_CBT (0x4000) — the channel binding flag. This is may seem off because this is plain LDAP on port 389, not LDAPS. The point is that the Windows client is still setting the channel binding flag to indicate it supports channel binding. The UnverifiedTargetName bit is not set, meaning the client verified the SPN against a trusted source.
+
+ad-type 144 (`KERB_AUTH_DATA_CLIENT_TARGET`):
+`Target Principal`: ldap/dc.sccmlab.local/sccmlab.local@SCCMLAB.LOCAL
+
+The fully qualified target SPN including realm. This lets the server verify the ticket is being presented to the intended service.
+
+**Relevant Code**:
+
+`getKerberosType1()` in kerberosv5.py builds (lines 644–664). The authenticator contains:
+```python
+pythonauthenticator['authenticator-vno'] = 5
+authenticator['crealm'] = domain
+seq_set(authenticator, 'cname', userName.components_to_asn1)
+authenticator['cusec'] = now.microsecond
+authenticator['ctime'] = KerberosTime.to_asn1(now)
+authenticator['cksum'] = noValue
+authenticator['cksum']['cksumtype'] = 0x8003
+# ... checksum flags ...
+authenticator['seq-number'] = 0
+```
+
+TLDR: the Windows AP-REQ authenticator contains four authorization data entries (141, 142, 143, 144) inside an AD-IF-RELEVANT wrapper per MS-KILE §3.2.5.8. Impacket's AP-REQ authenticator contains none, and so the `authorization-data` field is entirely absent.
+
+Something worth mentioning from the two screenshots above is that the Windows client included a key value within the AP-REQ that impacket didnt. The subkey in the authenticator is defined in [RFC 4120 §5.5.1](https://www.rfc-editor.org/rfc/rfc4120#section-5.5.1). It's an *optional* field where the client generates a fresh encryption key and includes it in the AP-REQ's authenticator. When its present, its used as an extra layer to maintain the security of the information exchange betweeen the two peers.
+
+Observing our windows client from the screenshot above, we can see Windows generated an AES256 subkey (keytype: 18, keyvalue: 94c65eb1...). That key then gets used for all subsequent LDAP exchanges on that connection. In the Impacket our capture, there's no subkey at all. Impacket's LDAP Kerberos bind path doesn't generate one, and instead it relies on the session key from the service ticket directly.
+
 
 <a id="cat-smb"></a>
 
