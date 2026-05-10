@@ -95,7 +95,7 @@
 ### IoC 01 - Kerberos Multiple Systematic Differences in AS-REQ
 **Surface:** Kerberos AS-REQ Network activity/requests
 
-Impacket's is built in a way thats different in several ways from how a Windows client typically fills the same request. The mismatches include `kdc-options`, flag choices, encryption types, and other request-body fields. 
+Impacket's is built in a way that's different in several ways from how a Windows client typically fills the same request. The mismatches include `kdc-options`, flag choices, encryption types, and other request-body fields. 
 
 Below is the AS-REQ body sent by Impacket:
 
@@ -251,9 +251,9 @@ Kerberos
 
 Noticeable differences include the fact that the Windows server sets `kdc-options: 40810010` while Impacket will use `kdc-options: 50800000`, additionally the real Windows client will usually include the `HostAddress`, `addr-type` and `NetBIOS Name`. 
 
-Impacket in `sname` uses `NT-PRINCIPAL (1)` instead of `NT-SRV-INST (2)`, whcih we can see is correctly used by our windows client. The sname for krbtgt/SCCMLAB.LOCAL has `name-type: kRB5-NT-PRINCIPAL (1)`. RFC 4120 Section 7.3 says the TGS principal "shall be composed of three parts" with "a two-part name of type NT-SRV-INST." Section 6.2 also describes `NT-SRV-INST (value 2)` as the type for "Service and other unique instance (krbtgt)." So krbtgt/REALM should be typed as NT-SRV-INST, not NT-PRINCIPAL. The RFC does say name-type should be treated as a hint and doesn't partition the namespace, so KDCs will accept it regardless however it's technically wrong per the spec and is another dfference that windows does not have. Windows will adhere to the spec in this regard.
+Impacket in `sname` uses `NT-PRINCIPAL (1)` instead of `NT-SRV-INST (2)`, which we can see is correctly used by our windows client. The sname for krbtgt/SCCMLAB.LOCAL has `name-type: kRB5-NT-PRINCIPAL (1)`. RFC 4120 Section 7.3 says the TGS principal "shall be composed of three parts" with "a two-part name of type NT-SRV-INST." Section 6.2 also describes `NT-SRV-INST (value 2)` as the type for "Service and other unique instance (krbtgt)." So krbtgt/REALM should be typed as NT-SRV-INST, not NT-PRINCIPAL. The RFC does say name-type should be treated as a hint and doesn't partition the namespace, so KDCs will accept it regardless however it's technically wrong per the spec and is another difference that windows does not have. Windows will adhere to the spec in this regard.
 
-Finally, the `etype` list for impacket is monolithic in nature. Impacket will offer aes-256 and then offer RC4. Meanwhile Windows clients offer alot more diverse and numerous encryption types depending on the enctype support set up for the service account, domain policies and other settings. 
+Finally, the `etype` list for impacket is monolithic in nature. Impacket will offer aes-256 and then offer RC4. Meanwhile Windows clients offer a lot more diverse and numerous encryption types depending on the enctype support set up for the service account, domain policies and other settings. 
 
 Some others in a digestible format include:
 
@@ -274,9 +274,9 @@ Something additional I have noticed since documenting this IoC is from [MS-KILE 
 > 
 > 2. When receiving the KRB\_AS\_REP message, if the Claims bit is set in PA-SUPPORTED-ENCTYPES [165] structure (section 2.2.8), and not set in PA-PAC-OPTIONS [167] structure (section 2.2.10), the client locates a DS\_BEHAVIOR\_WIN2012 DC (section 3.2.5.3) and returns to step 1.
 
-The above section expands on a enviroment-dependent configuration,in which Windows client with EnableCBACandArmor set to true will include PA-PAC-OPTIONS (padata type 167) with the Claims bit set in the AS-REQ. Impacket never includes this padata type in the AS exchange as Impacket doesnt appear to query/check for if `EnableCBACandArmor` is set in the domain we are operating in. Additionaly, the Windows client implements a fallback loop in which if the KDC's PA-SUPPORTED-ENCTYPES [165] response indicates Claims support but the reply's PA-PAC-OPTIONS does not echo the Claims bit, the client locates a Server 2012+ DC and retries. Impacket has no such negotiation or retry logic(which is predictable in context).
+The above section expands on a environment-dependent configuration,in which Windows client with EnableCBACandArmor set to true will include PA-PAC-OPTIONS (padata type 167) with the Claims bit set in the AS-REQ. Impacket never includes this padata type in the AS exchange as Impacket doesn't appear to query/check for if `EnableCBACandArmor` is set in the domain we are operating in. Additionally, the Windows client implements a fallback loop in which if the KDC's PA-SUPPORTED-ENCTYPES [165] response indicates Claims support but the reply's PA-PAC-OPTIONS does not echo the Claims bit, the client locates a Server 2012+ DC and retries. Impacket has no such negotiation or retry logic(which is predictable in context).
 
-The point of this being mentioned is that if one is operating in an enviroment configured with DAC/CBAC, which are limited to Windows Server 2012 or later in order to support claims-aware Kerberos tickets, then additional care should be taken as clients will follow a behvaiour set that Impacket will not. Note that FAST is not needed for most Impacket use cases, as we generally don't expect to be operating from a domain-joined host.
+The point of this being mentioned is that if one is operating in an environment configured with DAC/CBAC, which are limited to Windows Server 2012 or later in order to support claims-aware Kerberos tickets, then additional care should be taken as clients will follow a behaviour set that Impacket will not. Note that FAST is not needed for most Impacket use cases, as we generally don't expect to be operating from a domain-joined host.
 
 <a id="ioc-02"></a>
 
@@ -349,7 +349,7 @@ seq_set_iter(reqBody, 'etype', supportedCiphers)
 ```
 
 
-This is obviously out of the ordinary and for most enviroments; it is almost improbable that there's ever a Kerberos attempt only sending AES 256 keys and then only sending RC4 keys. If there is, I'm certain they are trivially excluded/made an exception for.
+This is obviously out of the ordinary and for most environments; it is almost improbable that there's ever a Kerberos attempt only sending AES 256 keys and then only sending RC4 keys. If there is, I'm certain they are trivially excluded/made an exception for.
 
 <a id="ioc-04"></a>
 
@@ -448,7 +448,7 @@ seq_set_iter(reqBody, 'etype',
 
 `getST.py` adds `PA-PAC-OPTIONS` with the `resource_based_constrained_delegation` bit when constructing S4U2Proxy requests. This is a strong Impacket S4U/RBCD indicator when observed with `additional-tickets`.
 
-Additonaly there exists a [registry](https://learn.microsoft.com/en-us/troubleshoot/windows-server/windows-security/kerberos-protocol-registry-kdc-configuration-keys) value called `S4UTicketLifetime`, which determines/enforces the lifetime of tickets that are obtained by S4U proxy requests. Impacket will use the default lifetime as its set to do, while we expected that we should be requesting such tickets within the expected policy enforced in the Forest. 
+Additionally there exists a [registry](https://learn.microsoft.com/en-us/troubleshoot/windows-server/windows-security/kerberos-protocol-registry-kdc-configuration-keys) value called `S4UTicketLifetime`, which determines/enforces the lifetime of tickets that are obtained by S4U proxy requests. Impacket will use the default lifetime as its set to do, while we expected that we should be requesting such tickets within the expected policy enforced in the Forest. 
 
 **How to find it**
 
@@ -890,7 +890,7 @@ Across multiple Impacket authentication pathways, the Kerberos Authenticator's `
 
 The Authenticator structure itself is defined in RFC 4120 Section 5.5.1, where `seq-number` is an *optional* `UInt32` field.
 
-MS-KILE (Microsoft's Kerberos extensions specification) does not make any real, or direct comments as to what is done with the sequence-number field. MS-KILE Section 3.2.5.8 describes the AP Exchange but it appears to point towards to RFC 4120 for Authenticator construction. In practice, Windows SSPI implementations consistently generate a random 32-bit value for this field, making a value of exactly `0` in every session anomalous behavioru when looking at the statistcal values in the field at the enteprise level.
+MS-KILE (Microsoft's Kerberos extensions specification) does not make any real, or direct comments as to what is done with the sequence-number field. MS-KILE Section 3.2.5.8 describes the AP Exchange but it appears to point towards to RFC 4120 for Authenticator construction. In practice, Windows SSPI implementations consistently generate a random 32-bit value for this field, making a value of exactly `0` in every session anomalous behavior when looking at the statistical values in the field at the enterprise level.
 
 The initial `seq-number` value from the Authenticator then becomes the starting point for the per-message sequence counter described in RFC 4121 Section 4.2.1, which is incremented by one after each `GSS_GetMIC()` or `GSS_Wrap()` token.
 
@@ -925,7 +925,7 @@ if sequenceNumber is None:
     sequenceNumber = int.from_bytes(get_random_bytes(4), "big")
 ```
 
-Like others, this is trivial to fix and so should be used in context of so many of the other IoCs present to confirm definitve impacket abuse. The below one liner would be sufficient to fix the matter.
+Like others, this is trivial to fix and so should be used in context of so many of the other IoCs present to confirm definitive impacket abuse. The below one liner would be sufficient to fix the matter.
 
 ```python
 authenticator['seq-number'] = int.from_bytes(os.urandom(4), 'big')
@@ -937,15 +937,15 @@ authenticator['seq-number'] = int.from_bytes(os.urandom(4), 'big')
 
 **Surface**: Kerberos Authentication/TGS and AS exchanges
 
-`EnableCBACandArmor` is a registry setting defined in MS-KILE that indicates the Kerberos client is claims, compound authentication, and FAST-aware. When set to TRUE, this setting causes two changes to the Kerberos exchanges. First, during the AS exchange, the client adds a PA-PAC-OPTIONS padata type with the Claims bit set in the AS-REQ to request claims authorization data; it does the same in the TGS exchange, notifying the KDC that the client is claims-aware. The second is that the client will use FAST (Flexible Authentication Secure Tunneling), as defined in RFC 6113, as long as the client is not a computer account, the client is running on a domain joined device and their realm supports it. One of the practical things this does is it allows for armor Kerberos messages in domains that support these features, with "armoring" here being the FAST mechanism that fully encrypts Kerberos messages and signs Kerberos errors, as part of the broader Dynamic Access Control framework introduced with Windows Server 2012-level domain controllers. This prevents the ability to preform ASREProasting attack. 
+`EnableCBACandArmor` is a registry setting defined in MS-KILE that indicates the Kerberos client is claims, compound authentication, and FAST-aware. When set to TRUE, this setting causes two changes to the Kerberos exchanges. First, during the AS exchange, the client adds a PA-PAC-OPTIONS padata type with the Claims bit set in the AS-REQ to request claims authorization data; it does the same in the TGS exchange, notifying the KDC that the client is claims-aware. The second is that the client will use FAST (Flexible Authentication Secure Tunneling), as defined in RFC 6113, as long as the client is not a computer account, the client is running on a domain joined device and their realm supports it. One of the practical things this does is it allows for armor Kerberos messages in domains that support these features, with "armoring" here being the FAST mechanism that fully encrypts Kerberos messages and signs Kerberos errors, as part of the broader Dynamic Access Control framework introduced with Windows Server 2012-level domain controllers. This prevents the ability to perform ASREProasting attack. 
 
-Impacket does not have any support/concept of `EnableCBACandArmor` flag and configuration. That means that many things that may be found/expected in an enviroment thats set the flag, will not be omitted/appropraitely constrcuted by impacket. 
+Impacket does not have any support/concept of `EnableCBACandArmor` flag and configuration. That means that many things that may be found/expected in an environment that's set the flag, will not be omitted/appropriately constructed by impacket. 
 
-A practical example wouold be when looking into `PA-PAC-OPTIONS` in `AS-REQ` (§3.2.5.5), when `EnableCBACandArmor` is TRUE, the AS-REQ should include PA-PAC-OPTIONS with the Claims bit set, but Impacket would not appropriately set the flag.
+A practical example would be when looking into `PA-PAC-OPTIONS` in `AS-REQ` (§3.2.5.5), when `EnableCBACandArmor` is TRUE, the AS-REQ should include PA-PAC-OPTIONS with the Claims bit set, but Impacket would not appropriately set the flag.
 
 **Expected/Proper client behaviour**:
 
-When the flag is set, the following changes/behvaiours as defined in MS-KILE are expected:
+When the flag is set, the following changes/behaviours as defined in MS-KILE are expected:
 **AS Exchange (MS-KILE 3.2.5.5)**
 
 - The client sets the Claims bit in PA-PAC-OPTIONS [167] in the AS-REQ, requesting claims authorization data.
@@ -962,7 +962,7 @@ When the flag is set, the following changes/behvaiours as defined in MS-KILE are
 
 **How to detect**:
 
-As this is something very contextual and enviroment specific, the exact context and detection processes will defer. The main detection is looking for what is and isnt expected based on the value: 
+As this is something very contextual and environment specific, the exact context and detection processes will defer. The main detection is looking for what is and isn't expected based on the value: 
 
 - Absence of PA-FX-FAST-REQUEST (padata 136) in AS-REQ/TGS-REQ on domains with FAST support enabled. Note that the caveat for this is that it only best works if the client also has support for FAST. So both releams and clients need to support it; complicating detection a little bit.
 
@@ -978,7 +978,7 @@ As this is something very contextual and enviroment specific, the exact context 
 
 ### IoC 18 - Impacket does not set `enc-authorization-data` in its produced TGS-REQ tickets
 
-**Surface**: Kerberos Implemention of TGS-REQ, forged tickets using `ticketer.py`
+**Surface**: Kerberos Implementation of TGS-REQ, forged tickets using `ticketer.py`
 
 The `enc-authorization-data` field is an optional encrypted container within the TGS-REQ req-body defined in [RFC 4120 §5.4.1](https://www.rfc-editor.org/rfc/rfc4120#section-5.4.1). The field is used by the client to add authorization data entries that are encrypted with the TGS session key (key usage 4 per RFC 4120 §7.5.1), ensuring only the KDC can read them. The KDC copies these entries into the resulting service ticket's `authorization-data` field.
 
@@ -986,7 +986,7 @@ Impacket's getKerberosTGS() in kerberosv5.py does not set the enc-authorization-
 
 **Expected/Proper Behaviour**:
 
-[MS-KILE Section 3.2.5.7](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/2c42487d-2572-4090-999d-0a2d73d8c946) specifies that when the target server name is not krbtgt, the Windows Kerberos client sends an `enc-authorization-data` field containing KERB_AUTH_DATA_LOOPBACK (ad-type 142) wrapped in an AD-IF-RELEVANT element. Additionally, modern Windows clients (Windows 8/Server 2012 and later) include `KERB_AUTH_DATA_TOKEN_RESTRICTIONS` (ad-type 141) containing a `KERB-AD-RESTRICTION-ENTRY` structure. This is observed over the wire when viewing wireshark but also is noted in [footnote 43](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/1163bb03-7035-433e-b5a4-802247262d18#Appendix_A_43) of the Product Behvaiour Appendix.
+[MS-KILE Section 3.2.5.7](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/2c42487d-2572-4090-999d-0a2d73d8c946) specifies that when the target server name is not krbtgt, the Windows Kerberos client sends an `enc-authorization-data` field containing KERB_AUTH_DATA_LOOPBACK (ad-type 142) wrapped in an AD-IF-RELEVANT element. Additionally, modern Windows clients (Windows 8/Server 2012 and later) include `KERB_AUTH_DATA_TOKEN_RESTRICTIONS` (ad-type 141) containing a `KERB-AD-RESTRICTION-ENTRY` structure. This is observed over the wire when viewing wireshark but also is noted in [footnote 43](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/1163bb03-7035-433e-b5a4-802247262d18#Appendix_A_43) of the Product Behaviour Appendix.
 
 We can see the relevant inclusions by the Windows client when observing a LDAP SASL bind in which a TGS-REQ was sent prior:
 
@@ -1009,7 +1009,7 @@ Impacket's `getKerberosTGS()` function does not fill in/set the relevant values.
 
 **Surface**: AP-REQ inside the LDAP SASL bind, Potentially identical issue with SMB2/3 authentication
 
-In the AP-REQ of a LDAP sasl bind, Impacket does not set various flags/types/strutures in the `authorization-data` inside the authenticator section. When binding with impacket, its observed that the structure is missing/unset and filled appropriately:
+In the AP-REQ of a LDAP sasl bind, Impacket does not set various flags/types/structures in the `authorization-data` inside the authenticator section. When binding with impacket, its observed that the structure is missing/unset and filled appropriately:
 
 ![](images/Screenshot2026-05-10at2.50.40PM.png)
 
@@ -1060,7 +1060,7 @@ authenticator['seq-number'] = 0
 
 TLDR: the Windows AP-REQ authenticator contains four authorization data entries (141, 142, 143, 144) inside an AD-IF-RELEVANT wrapper per MS-KILE §3.2.5.8. Impacket's AP-REQ authenticator contains none, and so the `authorization-data` field is entirely absent.
 
-Something worth mentioning from the two screenshots above is that the Windows client included a key value within the AP-REQ that impacket didnt. The subkey in the authenticator is defined in [RFC 4120 §5.5.1](https://www.rfc-editor.org/rfc/rfc4120#section-5.5.1). It's an *optional* field where the client generates a fresh encryption key and includes it in the AP-REQ's authenticator. When its present, its used as an extra layer to maintain the security of the information exchange betweeen the two peers.
+Something worth mentioning from the two screenshots above is that the Windows client included a key value within the AP-REQ that impacket didn't. The subkey in the authenticator is defined in [RFC 4120 §5.5.1](https://www.rfc-editor.org/rfc/rfc4120#section-5.5.1). It's an *optional* field where the client generates a fresh encryption key and includes it in the AP-REQ's authenticator. When its present, its used as an extra layer to maintain the security of the information exchange between the two peers.
 
 Observing our windows client from the screenshot above, we can see Windows generated an AES256 subkey (keytype: 18, keyvalue: 94c65eb1...). That key then gets used for all subsequent LDAP exchanges on that connection. In the Impacket our capture, there's no subkey at all. Impacket's LDAP Kerberos bind path doesn't generate one, and instead it relies on the session key from the service ticket directly.
 
@@ -1236,7 +1236,7 @@ sessionSetup['Data']['NativeLanMan']  = 'Samba'
 
 **Surface**: SMB2/3 Negotiate Request and Response exchange
 
-When observering Impacket preforming the SMB2 Session Setup Exchange, for example when connecting to a domain controller smbshare via `smbclient.py`, Impacket does not appear to be setting the `Security Mode` field in Session Setup Request to what the SMB2 Negotiaite Protocol Response packet returns. Impacket seems to be always setting the the `Security Mode` header to Signing is enabled: True(when it is) and Signing required: False. 
+When observing Impacket performing the SMB2 Session Setup Exchange, for example when connecting to a domain controller smbshare via `smbclient.py`, Impacket does not appear to be setting the `Security Mode` field in Session Setup Request to what the SMB2 Negotiate Protocol Response packet returns. Impacket seems to be always setting the the `Security Mode` header to Signing is enabled: True(when it is) and Signing required: False. 
 
 **Expected/Proper Behaviour**
 
@@ -1270,7 +1270,7 @@ This is a indictaor in a broader basekt of indicators and so should only be trea
 ### IoC 24 - NTLM implementation omissions in various fields
 **Surface:** NTLMSSP over SMB, HTTP, LDAP, RPC
 
-Impacket's Type 1 builder for NTLM does not offer/send a NTLM version, in potential violation of [MS-NLMP](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-nlmp/b535636e-49c4-43af-8685-801cc381882f) as section 3.1.5.1.1 states that the client initating the `NEGOTIATE_MESSAGE` should *either* specify the current version based on the operating system as defined by [section 2.2.2.10](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-nlmp/b1a6ceb2-f8ad-462b-b5af-f18527c48175) OR If the `NTLMSSP_NEGOTIATE_VERSION` flag is not set by the client application, the Version field MUST be set to all-zero. Comparing that against the real/expected Windows behvaiour they do indeed mirror the MS-NLMP directives as Windows clients will always send the `Version` field with the right version or on one occasion I did see the `Version` being 0'ed(note that the field was still present)
+Impacket's Type 1 builder for NTLM does not offer/send a NTLM version, in potential violation of [MS-NLMP](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-nlmp/b535636e-49c4-43af-8685-801cc381882f) as section 3.1.5.1.1 states that the client initiating the `NEGOTIATE_MESSAGE` should *either* specify the current version based on the operating system as defined by [section 2.2.2.10](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-nlmp/b1a6ceb2-f8ad-462b-b5af-f18527c48175) OR If the `NTLMSSP_NEGOTIATE_VERSION` flag is not set by the client application, the Version field MUST be set to all-zero. Comparing that against the real/expected Windows behaviour they do indeed mirror the MS-NLMP directives as Windows clients will always send the `Version` field with the right version or on one occasion I did see the `Version` being 0'ed(note that the field was still present)
 
 We can see this done here, where the following is a connection from a Server 2022:
 
@@ -1668,7 +1668,7 @@ Native Windows WMI/DCOM clients are expected to perform either all or most of th
 
 What we can interpret here is that the sending of NULL in the `pszPreferredLocale`, the behavior Impacket defaults to, is "meant" to occur after the local negotiation and unsupported elements between the two systems are gutted.  The NULL value therefore can be okay *if* there was a `EstablishPosition` exchange that happened. 
 
-Additionaly, we don't see various proceeding negotiations/steps that otherwise should be occurring. The Windows client, by contrast, implements the full MS-DCOM connection/activation profile that's given per 3.2.4.1.1, including OXID resolution, `IRemUnknown` connection, interface querying, and reference counting. 
+Additionally, we don't see various proceeding negotiations/steps that otherwise should be occurring. The Windows client, by contrast, implements the full MS-DCOM connection/activation profile that's given per 3.2.4.1.1, including OXID resolution, `IRemUnknown` connection, interface querying, and reference counting. 
 
 Once that's done, the Windows clients will then perform the wider context of the MS-WMI connection. Note that the screenshots below were from the exchange of a Windows client with a server:
 
@@ -1937,7 +1937,7 @@ else:
 lmChallengeResponse = hmac_md5(responseKeyNT, serverChallenge + clientChallenge) + clientChallenge
 ```
 
-As we can glean from above, impacket has no conditional check exists to send `Z(24)` when `MsvAvTimestamp` is present. An additional detection for this that would make it an almost "garuntee" hit for Impacket NTLM use is an LM challenge response being sent with the relevant Lmhash being a impacket set default; `DEFAULT_LM_HASH = binascii.unhexlify('AAD3B435B51404EEAAD3B435B51404EE')`. This allows us to eliminate the probablity of any normal clients/behaviours being caught up in this detection as within the ntlm.py implementation; if the caller does not provide the APIs in the ntlm class a lmhash then the compute_lmhash function defaults to returning the above default. 
+As we can glean from above, impacket has no conditional check exists to send `Z(24)` when `MsvAvTimestamp` is present. An additional detection for this that would make it an almost "garuntee" hit for Impacket NTLM use is an LM challenge response being sent with the relevant Lmhash being a impacket set default; `DEFAULT_LM_HASH = binascii.unhexlify('AAD3B435B51404EEAAD3B435B51404EE')`. This allows us to eliminate the probability of any normal clients/behaviours being caught up in this detection as within the ntlm.py implementation; if the caller does not provide the APIs in the ntlm class a lmhash then the compute_lmhash function defaults to returning the above default. 
 
 ## NTLMSSP_NEGOTIATE_ALWAYS_SIGN Not Always Set
 
@@ -1992,7 +1992,7 @@ def computeResponse(flags, serverChallenge, clientChallenge, serverName, domain,
 
 No code path exists to add `Z(16)` when `channel_binding_value` is empty.
 
-## ExportedSessionKey dervied using ASCI characters only. 
+## ExportedSessionKey derived using ASCI characters only. 
 
 **Spec:** [MS-NLMP] 3.1.5.1.2 states `Set ExportedSessionKey to NONCE(16)`. §6 defines `NONCE(N)` as "an N-byte cryptographic-strength random number."
 
@@ -2010,7 +2010,7 @@ if ntlmChallenge['flags'] & NTLMSSP_NEGOTIATE_KEY_EXCH:
     exportedSessionKey = b("".join([random.choice(string.digits+string.ascii_letters) for _ in range(16)]))
 ```
 
-The comment `# not exactly what I call random tho :)` is in the source itself. Additionaly, `random.choice` uses Python's `random` module (Mersenne Twister), not `os.urandom` or `secrets`, so even the 95 bits of entropy are not cryptographically strong.
+The comment `# not exactly what I call random tho :)` is in the source itself. Additionally, `random.choice` uses Python's `random` module (Mersenne Twister), not `os.urandom` or `secrets`, so even the 95 bits of entropy are not cryptographically strong.
 
 
 ## Domain Name Format is Caller-Controlled, and Not Server-Derived
@@ -2183,11 +2183,11 @@ Compared with enumerating services remotely from the Windows server, we send an 
 
 ![Pasted image 20260429143430](images/Pasted%20image%2020260429143430.png)
 
-When looking at the relevant MS-RPCE [section 3.3.1.5.3](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/87964b3c-1785-4aae-a993-734999441ed3) on Bind Time negotitation, the language, to me at least, appears to indicate that a client is expected to be sending the Bind Time neogitiation:
+When looking at the relevant MS-RPCE [section 3.3.1.5.3](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/87964b3c-1785-4aae-a993-734999441ed3) on Bind Time negotiation, the language, to me at least, appears to indicate that a client is expected to be sending the Bind Time negotiation:
 
 > _"When sending a bind PDU, a client SHOULD add an element in the p_cont_elem array that has the same value for the abstract_syntax field as the previous element in the p_cont_elem array, but that MUST have exactly one element in the transfer_syntaxes array; also, its if_uuid field MUST have the following prefix: 6CB71C2C-9812-4540 and a version number of 1.0."_
 
-Within the section, we can see footnote <99> thats pointing us to [Appendix B: Product Behaviour]([https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/87964b3c-1785-4aae-a993-734999441ed3](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/9039a59f-3075-4680-9517-19239bebf155#Appendix_A_99), which adds additioanly econtext to the bind time negotiation behaviour:
+Within the section, we can see footnote <99> that's pointing us to [Appendix B: Product Behaviour]([https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/87964b3c-1785-4aae-a993-734999441ed3](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/9039a59f-3075-4680-9517-19239bebf155#Appendix_A_99), which adds additionally context to the bind time negotiation behaviour:
 
 > _"<99> Section 3.3.1.5.3: Windows clients and servers in Windows Server 2003 and earlier do not support the bind time feature negotiation, the server uses the behavior specified in [C706], and the client does not indicate support for bind time feature negotiation and security context multiplexing. Otherwise, the server uses the message processing rules in this section, and clients always indicate support for bind time feature negotiation and for security context multiplexing. Windows allows a client to disable proposing use of the bind time feature negotiation through configuration."_
 
@@ -2282,7 +2282,7 @@ And in violation of MS-SCMR:
 
 As we can see, Impacket violates the spec! Impacket will pass `NULL`  for `lpResumeIndex` on the retry.  However, since `cbBufSize` is now the full size needed(based on the servers response), the server can fit all services in one shot, and with that, the resume index becomes irrelevant and the call succeeds. This appears to be a shortcut Impacket put that works because the buffer is now large enough for the complete enumeration.
 
-In Windows, we see that typically the call **guesses** a large enough buffer up front. We also see the call provides a valid `Pointer to Resume Index`, initialized to `0`, rather than a NULL pointer. The server will reply with `STATUS_BUFFER_OVERFLOW FSCTL_PIPE_TRANSCEIVE`, which indicates to us that our buffer wasnt large enough. We can see the initial request sent by a native Windows call:
+In Windows, we see that typically the call **guesses** a large enough buffer up front. We also see the call provides a valid `Pointer to Resume Index`, initialized to `0`, rather than a NULL pointer. The server will reply with `STATUS_BUFFER_OVERFLOW FSCTL_PIPE_TRANSCEIVE`, which indicates to us that our buffer wasn't large enough. We can see the initial request sent by a native Windows call:
 
 ![Pasted image 20260429160701](images/Pasted%20image%2020260429160701.png)
 
@@ -2317,7 +2317,7 @@ def bind(self, iface_uuid, alter = 0, bogus_binds = 0, transfer_syntax = ('8a885
             ctx += 1
 ```
 
-This somehow may be something potentialy detectable or otherwise deployable as part of a broader signuture cluster detector Its notable that by default, when binding; no "bogus" binds would be preformed but that it may if the operator specifies it.
+This somehow may be something potentially detectable or otherwise deployable as part of a broader signature cluster detector Its notable that by default, when binding; no "bogus" binds would be performed but that it may if the operator specifies it.
 
 **Expected / proper baseline**
 
@@ -2448,12 +2448,12 @@ A discussion about this subtlety as I explored the spec: `0x00` is not “in-pro
 `InstantiationInfoData.thisSize / EntirePropertySize`:  
 Windows 88, Impacket 0
 
-Microsoft [defines](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/00ad4108-3772-4cda-87df-b2514d4f983b) this size, in bytes, of the structure, as marshaled by the NDR Type Serialization 1 engine. It follows to reason that this should never be 0 bytes otherwise that just defeats the point? also again refering to the Appendix of the spec it does appear Windows will send a plausible number. Another important caveat is that the spec does say that Windows servers will ignore the value anyways and so why I suspect Impacket just sends 0. 
+Microsoft [defines](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/00ad4108-3772-4cda-87df-b2514d4f983b) this size, in bytes, of the structure, as marshaled by the NDR Type Serialization 1 engine. It follows to reason that this should never be 0 bytes otherwise that just defeats the point? also again referring to the Appendix of the spec it does appear Windows will send a plausible number. Another important caveat is that the spec does say that Windows servers will ignore the value anyways and so why I suspect Impacket just sends 0. 
 
 Finally, Impacket does not set the proper `ActivationContextInfo` to a non null `OBJREF` object within it that would otherwise be expected:
 
 ![Pasted image 20260501090843](images/Pasted%20image%2020260501090843.png)
-As seen fro above, `ActivationContextInfoData.pIFDClientCtx` is NULL, despite a MUST being used in the MS-DCOM specification in [3.2.4.1.1.2](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/647893cd-f63a-4df4-8fe1-a962fbcac0d7). Specifically: **It MUST set the pIFDClientCtx field of the `ActivationContextInfoData` structure to an OBJREF containing a marshaled Context structure.**
+As seen from above, `ActivationContextInfoData.pIFDClientCtx` is NULL, despite a MUST being used in the MS-DCOM specification in [3.2.4.1.1.2](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/647893cd-f63a-4df4-8fe1-a962fbcac0d7). Specifically: **It MUST set the pIFDClientCtx field of the `ActivationContextInfoData` structure to an OBJREF containing a marshaled Context structure.**
 
 **Expected / Proper Baseline**
 
@@ -2690,7 +2690,7 @@ Impacket's behaviour is a deviation from the MS-DCOM specification, in which [se
 
 > _"DCOM is based on RPC, and implementations SHOULD support the use of any RPC protocol sequence available in the underlying RPC implementation. The client SHOULD discover an initial working RPC protocol by calling the object resolver on multiple protocols. IObjectExporter::ServerAlive2 (Opnum 5) SHOULD be used for this purpose, and then any RPC protocol to which the object resolver responds SHOULD be used."_
 
-From that, we can see that the Windows product behvaiour(and any real vendor product for that matter) will adhere to attempting to resolve/discover rather than guess/assume(as Impacket does).
+From that, we can see that the Windows product behaviour(and any real vendor product for that matter) will adhere to attempting to resolve/discover rather than guess/assume(as Impacket does).
 
 **Expected / Proper Baseline**
 
@@ -2721,7 +2721,7 @@ IRemUnknown::RemRelease
 ```
 
   
-This is best treated as a lifecycle fingerprint to be combined with others. Impacket has a `ServerAlive2()` implementation, but it doesnt appear to be in use when using the DCOMConnection class implementation.
+This is best treated as a lifecycle fingerprint to be combined with others. Impacket has a `ServerAlive2()` implementation, but it doesn't appear to be in use when using the DCOMConnection class implementation.
 
 **How To Find It**
 
@@ -2897,7 +2897,7 @@ As per [MS-DCOM] 3.2.4.1.2 (Activation Request Parameters):
 
 "The client MUST specify the impersonation level requested by the application, if one was supplied; otherwise, it MUST specify a default impersonation level of at least RPC_C_IMPL_LEVEL_IMPERSONATE (2)."
 
-The supplied Windows client consistently used `ClientImpersonationLevel: 2` in the DCOM activation `ScmRequestInfo`. Impacket leaves the field at the structure default, producing `0`, which isnt the spec defined default; which would be 2?
+The supplied Windows client consistently used `ClientImpersonationLevel: 2` in the DCOM activation `ScmRequestInfo`. Impacket leaves the field at the structure default, producing `0`, which isn't the spec defined default; which would be 2?
 
 **How To Find It**
 
@@ -3387,7 +3387,7 @@ class DummyOp(NDRCALL):
             if 'nca_s_op_rng_error' not in str(e) or 'RPC_E_INVALID_HEADER' not in str(e):
                 raise
 ```
-This is particualrly nice when factoring in that it provides an additional route to detect AD-CS ESC11 abuse as well as ESC8 when enlisting the use of RPC servers. 
+This is particularly nice when factoring in that it provides an additional route to detect AD-CS ESC11 abuse as well as ESC8 when enlisting the use of RPC servers. 
 
 **Source:**
 `impacket/examples/ntlmrelayx/clients/rpcrelayclient.py`:L119
@@ -3853,7 +3853,7 @@ apReq["authenticator"] = noValue
 
         blob["MechToken"] = encoder.encode(apReq)
 
-        # Seeting the last options for our TDS packet
+        # Setting the last options for our TDS packet
         # TDS_INTEGRATED_SECURITY_ON enables Windows authentication
         login["OptionFlags2"] |= TDS_INTEGRATED_SECURITY_ON
 ```
