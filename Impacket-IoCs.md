@@ -24,6 +24,7 @@
   - [IoC 16 - SMB2/3 client uses ASCII-letter `ClientGuid`](#ioc-16)
   - [IoC 17 - SMB2/3 negotiate request contains multiple omissions compared to Windows](#ioc-17)
   - [IoC 18 - SMB1 client negotiate offers only `NT LM 0.12`](#ioc-18)
+  - [IoC 19 - SMB2/3 Session Setup Request does not set `Security Mode` based on clients negotiate respone](#ioc19)
 - [NTLM and SPNEGO](#cat-ntlm-and-spnego)
   - [IoC 19 - NTLM implementation omissions in various fields](#ioc-19)
   - [IoC 20 - `ntlmrelayx` LDAP computer creation: 8 uppercase letters plus `$`](#ioc-20)
@@ -1133,6 +1134,35 @@ sessionSetup['Data']['NativeOS']      = 'Unix'
 
 sessionSetup['Data']['NativeLanMan']  = 'Samba'
 ```
+
+### IoC 19 - SMB2/3 Session Setup Request does not set `Security Mode` based on clients negotiate respone
+
+**Surface**: SMB2/3 Negotiate Request and Response exchange
+
+When observering Impacket preforming the SMB2 Session Setup Exchange, for example when connecting to a domain controller smbshare via `smbclient.py`, Impacket does not appear to be setting the `Security Mode` field in Session Setup Request to what the SMB2 Negotiaite Protocol Response packet returns. Impacket seems to be always setting the the `Security Mode` header to Signing is enabled: True(when it is) and Signing required: False. 
+
+**Expected/Proper Behaviour**
+
+When connecting to a domain controller, we know that SMB signing is enforced by default. This can be gleaned when observing a appropriate Windows client authenticating to the DCs share:
+
+![Screenshot 2026-05-10 at 11.36.15 AM](images/Screenshot%202026-05-10%20at%2011.36.15%20AM.png)
+
+As we can see from above, since the Domain Controller is enforcing SMB signing, the windows client in the Session SetUp request appropriately reflects that and adds the Signing Required flag to be true. 
+
+In comparison with Impacket, we can see that the flag is never set even tho the domain controller is expecting it:
+
+![Screenshot 2026-05-10 at 11.45.38 AM.png](images/Screenshot%202026-05-10%20at%2011.45.38%20AM.png)
+
+Impacket sticks with setting the Signing Enabled flag to be true and keeping the signing required flag false. When looking at MS-SMB2 Section 3.2.4.2.2.2 , we can see the following:
+
+> _"If RequireMessageSigning is TRUE, the client MUST set the SMB2_NEGOTIATE_SIGNING_REQUIRED bit to TRUE in SecurityMode."_
+> _"If RequireMessageSigning is FALSE, the client MUST set the SMB2_NEGOTIATE_SIGNING_ENABLED bit to TRUE in SecurityMode. The client MUST store the value of the SecurityMode field in Connection.ClientSecurityMode."_ 
+
+Note that the domain controller will still enforce signing at the session level regardless of what the client advertises(in this case impacket) since the server's signing enforcement is not contingent on the client's `SecurityMode` flags. The connection succeeds and packets are signed. However, the mismatch between the server's `SMB2_NEGOTIATE_SIGNING_REQUIRED` response and the client not matching that requirement in the Session Setup Request creates a detectable behavioral fingerprint. 
+
+**How to detect**:
+
+This is a indictaor in a broader basekt of indicators and so should only be treated as an aid to other detections. 
 
 <a id="cat-ntlm-and-spnego"></a>
 
