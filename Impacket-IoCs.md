@@ -22,6 +22,7 @@
   - [IoC 17 - Impacket's Kerberos implementation does not check for `EnableCBACandArmor` to alter ticket requests](#ioc-17)
   - [IoC 18 - Impacket does not set `enc-authorization-data` in its produced TGS-REQ tickets](#ioc-18)
   - [IoC 19 - Impacket does not set `authorization-data` when it constructs an AP-REQ](#ioc-19)
+  - [IoC 20 - Impackets Kerberos TGT request process does not set the correct etype values based on intersection from the KDC and TGS-REQ](#ioc-20)
 - [SMB](#cat-smb)
   - [IoC 20 - SMB2/3 client uses ASCII-letter `ClientGuid`](#ioc-20)
   - [IoC 21 - SMB2/3 negotiate request contains multiple omissions compared to Windows](#ioc-21)
