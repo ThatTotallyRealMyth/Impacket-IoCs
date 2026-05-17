@@ -1336,6 +1336,41 @@ if version is not None:
     auth['os_version'] = version
 ```
 
+<a id="ioc-25.1"></a>
+
+### IoC 25.1 - Impacket Sets The NTLMSSP_NEGOTIATE_TARGET_INFO flag in the NTLM type 1 message
+
+**Surface:** Observering/decoding type 1 NTLM messages for the flag if the system is a client
+
+Impackets ntlm implementation by default is set to use NTLMv2, which triggers impacket to add to the flags object the `NTLMSSP_NEGOTIATE_TARGET_INFO (0x00800000)` entry. 
+
+**Expected/baseline Behaviour:**
+
+Reading through the Windows Server 2003 source code, We can see that `NTLMSSP_NEGOTIATE_TARGET_INFO (0x00800000)` is defined in the Windows SDK (ntlmsp.h:126) as "target info present in challenge message". This means that its a flag that belongs to *type 2* NTLM messages; not type 1, which is where Impacket is placing the flag. 
+
+Additionally, it's a server-side flag the server sets in the Type 2 challenge to tell the client that AV pairs are included. From that, we can expect the Windows NTLM client never sets this flag in the Type 1.
+
+**Relevant Code:**
+
+Looking at impacket/ntlm.py lines 624:
+
+```python
+if use_ntlmv2:
+   auth['flags'] |= NTLMSSP_NEGOTIATE_TARGET_INFO
+```
+
+Now lets compare that with the Windows 2003 source code, which is [here](https://github.com/mrcxlinux/srv03rtm-anika/blob/main/ds/security/protocols/msv_sspi/ctxtcli.cxx) in lines 220–234:
+
+```c
+Context->NegotiateFlags = NTLMSSP_NEGOTIATE_UNICODE |
+                          NTLMSSP_NEGOTIATE_OEM |
+                          NTLMSSP_NEGOTIATE_NTLM |
+                          ... |
+                          NTLMSSP_NEGOTIATE_VERSION;
+```
+As we can see from above, theres no No NTLMSSP_NEGOTIATE_TARGET_INFO here being set.
+
+
 <a id="ioc-25"></a>
 
 ### IoC 25 - `ntlmrelayx` LDAP computer creation: 8 uppercase letters plus `$`
