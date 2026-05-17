@@ -706,6 +706,8 @@ And then now comparing with a LDAP bind against the DC from our Windows Server:
     - `MechType: 1.2.840.48018.1.2.2` (MS KRB5 - Legacy)
     - `MechType: 1.2.840.113554.1.2.2` (KRB5 - Standard)
 
+Its interesting to note that looking at the Windows server 2003 source code, this specific OID was refered to as `bogus mangled OID from spnego` by Microsoft in `ds/security/protocols/kerberos/client2/userapi.cxx` lines 70–81.
+
 **How to find it**
 
  Inspecting the SPNEGO `NegTokenInit` and noting when:  
