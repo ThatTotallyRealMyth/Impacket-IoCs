@@ -1370,6 +1370,41 @@ Context->NegotiateFlags = NTLMSSP_NEGOTIATE_UNICODE |
 ```
 As we can see from above, theres no No NTLMSSP_NEGOTIATE_TARGET_INFO here being set.
 
+<a id="ioc.25.2"></a>
+
+### IoC 25.2 - Impackets NTLM Is Missing `NTLMSSP_NEGOTIATE_OEM` flag in Type 1 messages
+
+**Surface** NTLM Auth Type 1 Messages Flags
+
+When constructing a NTLM type 1 message, among the "default" or standard flags; Impacket does not add/set the `NTLMSSP_NEGOTIATE_OEM` flag. Instead Impacket is only setting its counterpart/replacement flag, `NTLMSSP_NEGOTIATE_UNICODE`
+
+**Expected/Proper Behaviour:**
+
+Windows always offers both Unicode (0x01) and OEM (0x02) character set support in the Type 1. Its up to the server then to pick one  and specify it back to the client in the Type 2 response. Impacket only offers Unicode(`NTLMSSP_NEGOTIATE_UNICODE`). While Unicode is always preferred on modern systems, theres still the absent `NTLMSSP_NEGOTIATE_OEM` flag.
+
+We can see this in both actuality when looking at our Windows 2022 client:
+
+```text
+Negotiate Flags: 0xe2088297, Negotiate 56, Negotiate Key Exchange, Negotiate 128, Negotiate Version, Negotiate Extended Session Security, Negotiate Always Sign, Negotiate NTLM key, Negotiate Lan Manager Key, Negotiate Sign, Request Target
+    1... .... .... .... .... .... .... .... = Negotiate 56: Set
+    .1.. .... .... .... .... .... .... .... = Negotiate Key Exchange: Set
+    ..1. .... .... .... .... .... .... .... = Negotiate 128: Set
+    ...0 .... .... .... .... .... .... .... = Negotiate 0x10000000: Not set
+    .... 0... .... .... .... .... .... .... = Negotiate 0x08000000: Not set
+    .... .0.. .... .... .... .... .... .... = Negotiate 0x04000000: Not set
+    .... ..1. .... .... .... .... .... .... = Negotiate Version: Set
+...........................................................................................
+    .... .... .... .... .... .... .... .1.. = Request Target: Set
+    .... .... .... .... .... .... .... ..1. = Negotiate OEM: Set
+    .... .... .... .... .... .... .... ...1 = Negotiate UNICODE: Set
+```
+
+We can also confirm this with the Windows server 2003 source code ctxtcli.cxx lines 220–221:
+
+```c
+Context->NegotiateFlags = NTLMSSP_NEGOTIATE_UNICODE |
+                          NTLMSSP_NEGOTIATE_OEM |     // <-- always set
+```
 
 <a id="ioc-25"></a>
 
