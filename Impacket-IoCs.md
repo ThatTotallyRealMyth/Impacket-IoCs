@@ -30,6 +30,7 @@
   - [IoC 23 - SMB2/3 Session Setup Request does not set `Security Mode` based on clients negotiate response](#ioc-23)
 - [NTLM and SPNEGO](#cat-ntlm-and-spnego)
   - [IoC 24 - NTLM implementation omissions in various fields](#ioc-24)
+  - [IoC 25 - Impacket Sets The `NTLMSSP_NEGOTIATE_TARGET_INFO` flag in the NTLM type 2 message](#ioc-25)
   - [IoC 25 - `ntlmrelayx` LDAP computer creation: 8 uppercase letters plus `$`](#ioc-25)
   - [IoC 26 - `ntlmrelayx` DNS WPAD bypass creates 12-letter random A record first](#ioc-26)
   - [IoC 27 - NTLMv2 client challenge is eight printable alphanumeric bytes](#ioc-27)
@@ -1662,11 +1663,12 @@ Native Windows WMI/DCOM clients are expected to perform either all or most of th
 
 **[MS-WMI](https://learn.microsoft.com/de-at/openspecs/windows_protocols/ms-wmi/38d52a83-1613-4c56-8418-12ad1145eeaa) 3.2.3 (Initialization / Locale Negotiation):**
 
-> _"If the client has multiple preferred locales or any locale string that does not match the 'MS_xxx' format as the pszPreferredLocale parameter to IWbemLevel1Login::NTLMLogin, **the client MUST determine whether the server supports the locale and filter out unsupported locales before calling IWbemLevel1Login::NTLMLogin**. To determine supported locales, **the client MUST call IWbemLevel1Login::EstablishPosition**."_
+> if the client has multiple preferred locales or any locale string that does not match the 'MS_xxx' format as the pszPreferredLocale parameter to IWbemLevel1Login::NTLMLogin, **the client MUST determine whether the server supports the locale and filter out unsupported locales before calling IWbemLevel1Login::NTLMLogin**. To determine supported locales, **the client MUST call IWbemLevel1Login::EstablishPosition**.
+>
 
-> _"If the return value is E_NOTIMPL, the client MUST choose the first locale that matches the 'MS_xxx' format and MUST remove other locales from the string."_
+> If the return value is E_NOTIMPL, the client MUST choose the first locale that matches the 'MS_xxx' format and MUST remove other locales from the string.
 
-> _"If the locale list is empty after unsupported locales are filtered out, the client MUST pass NULL for pszPreferredLocale."_
+> If the locale list is empty after unsupported locales are filtered out, the client MUST pass NULL for pszPreferredLocale.
 
 What we can interpret here is that the sending of NULL in the `pszPreferredLocale`, the behavior Impacket defaults to, is "meant" to occur after the local negotiation and unsupported elements between the two systems are gutted.  The NULL value therefore can be okay *if* there was a `EstablishPosition` exchange that happened. 
 
