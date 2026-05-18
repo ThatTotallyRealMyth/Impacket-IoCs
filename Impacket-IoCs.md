@@ -277,6 +277,21 @@ We can also see the evidence for the above from the Windows 2003 Server source c
                                         KERB_KDC_OPTIONS_renewable_ok | \
                                         KERB_KDC_OPTIONS_name_canonicalize )
 ```
+The source code also shows us that the host address is always placed into the AS-REQ(logonapi.cxx:1348–1371):
+
+```c
+// We always put the NetBIOS name of the client into the request
+Status = KerbBuildHostAddresses(IncludeIpAddresses, IncludeNetbiosAddresses, &HostAddresses);
+if ( HostAddresses ) {
+    RequestBody->addresses = HostAddresses;
+    RequestBody->bit_mask |= addresses_present;
+}
+```
+Finally, we can also see the source code providing us with which `sname` type is set(which we expect to be `NT-SRV-INST` type 2(logonapi.cxx:2834):
+
+```c
+KerbBuildFullServiceKdcName(&ClientRealm, &KerbGlobalKdcServiceName, KRB_NT_SRV_INST, &KdcServiceKdcName);
+```
 
 Something additional I have noticed since documenting this IoC is from [MS-KILE Section 3.2.5.5](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/a6adb34c-b6bb-42f4-afb8-8cd989cbadc1#Appendix_A_Target_39):
 
