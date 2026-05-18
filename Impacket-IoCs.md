@@ -295,7 +295,17 @@ The point of this being mentioned is that if one is operating in an environment 
 ### IoC 02 - AS-REQ requested lifetime has `till == rtime == now + 1 day`
 **Surface:** Kerberos AS-REQ network telemetry
 
-Impacket sets both requested ticket end time and renew-till time to the same UTC value: current time plus one day. The default values, from what I can gather for renew-till time is generally 7 days. Additionally the ticket end time value depends on a few things. For example, normally it would be 10 hours, but for protected  users both the renew-till and the ticket endtime would be enforced to 240 minutes. This is useful in certain abuses where we may find the protected users being impersonated during delegation abuse and the tickets lifetimes don't match what one expects. 
+Impacket sets both requested ticket end time and renew-till time to the same UTC value: current time plus one day. The default values, from what I can gather for renew-till time is generally 7 days. Additionally the ticket end time value depends on a few things. For example, normally it would be 10 hours, but for protected  users both the renew-till and the ticket endtime would be enforced to 240 minutes. This is useful in certain abuses where we may find the protected users being impersonated during delegation abuse and the tickets lifetimes don't match what one expects.
+
+**Expected/Proper Behaviour:**
+
+Windows during the first AS-REQ will set the `rtime` and `till` time to far off senintnel dates. What that means is that it will usually set them to septemeber 2037. While we did notice this in the AS-REQ exmaple provided in IoC 1, We also can see this in the releavnt source code from the Windows 2003 Server(logonapi.cxx:1197–1211):
+
+```c
+TempTime = KerbGlobalWillNeverTime;     // ~Sep 2037 (0x7FFFFFFFFFFFFFFF FILETIME)
+KerbConvertLargeIntToGeneralizedTime(&RequestBody->endtime, NULL, &TempTime);
+KerbConvertLargeIntToGeneralizedTime(&RequestBody->KERB_KDC_REQUEST_BODY_renew_until, NULL, &TempTime);
+```
 
 **Where the IoC exists**  
 Decode AS-REQ `req-body.till` and `req-body.rtime`. Alert when both are equal or nearly equal and are approximately 24 hours after the request timestamp. Raise confidence when the same request also has sparse encryption type negotiation.
@@ -338,7 +348,14 @@ Comparing that from our Windows client performing the AS-REQ, the etypes list ha
 
 ![Pasted image 20260430182342](images/Pasted%20image%2020260430182342.png)
 
-As noted earlier, unlike Impacket, real Windows clients also send the Address/HostAddress sub fields within the AS-REQ. 
+We can see the above behaviour origins by looking at the Windows Server 2003 source code(logonapi.cxx:1490–1527):
+
+```c
+// Build from ALL credential-derived keys
+KerbConvertKeysToCryptList(&RequestBody->encryption_type, PrimaryCredentials->Passwords);
+// OR build from ALL supported crypto systems
+CDBuildIntegrityVect(&CryptTypeCount, CryptTypes);
+```
 
 **Where the IoC exists**
 
