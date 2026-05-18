@@ -269,6 +269,15 @@ Some others in a digestible format include:
 | `etype`          | Single AES cipher (often)      | Broad list including RC4         |
 | `addresses`      | Absent                         | Host NetBIOS name present        |
 
+We can also see the evidence for the above from the Windows 2003 Server source code(found at kerbtick.h:82–85) in which we can see the following defined flags that match with the above observations:
+
+```c
+#define KERB_DEFAULT_TICKET_FLAGS (KERB_KDC_OPTIONS_forwardable | \
+                                        KERB_KDC_OPTIONS_renewable | \
+                                        KERB_KDC_OPTIONS_renewable_ok | \
+                                        KERB_KDC_OPTIONS_name_canonicalize )
+```
+
 Something additional I have noticed since documenting this IoC is from [MS-KILE Section 3.2.5.5](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/a6adb34c-b6bb-42f4-afb8-8cd989cbadc1#Appendix_A_Target_39):
 
 > If EnableCBACandArmor is TRUE, the client SHOULD behave as follows:
