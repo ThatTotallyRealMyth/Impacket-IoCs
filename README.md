@@ -18,7 +18,7 @@ The intent is to give defenders, especially smaller teams without access to expe
 
 ## What is included
 
-This research currently documents **67 Impacket-related IoCs** across the following categories:
+This research currently documents **73 Impacket-related IoCs** across the following categories:
 
 | Category | Count | Examples |
 | --- | ---: | --- |
